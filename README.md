@@ -21,8 +21,8 @@ Welcome to the **Navarrete Project**! This project is built using **SvelteKit**,
 To set up the project, clone this repository and install the dependencies:
 
 ```bash
-git clone https://github.com/yourusername/project-name.git
-cd project-name
+git clone https://github.com/HorizonsDevs/navarrete-project.git
+cd navarrete-project
 npm install
 ```
 
