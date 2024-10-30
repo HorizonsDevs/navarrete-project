@@ -1,0 +1,1 @@
+Here you can add components that don't necessarily have to be a page, this is for items that are meant to be reusable.
