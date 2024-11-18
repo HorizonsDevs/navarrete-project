@@ -1,45 +1,32 @@
 <script>
     import HeroCarousel from '../lib/components/Hero.svelte';
     import ProductsCarousel from '../lib/components/Products.svelte';
+    import Location from '../lib/components/Location.svelte';
+    import Retailers from '../lib/components/Retailers.svelte';
 </script>
 
-<!-- Main content wrapper to structure the page layout -->
 <div class="content">
-    <!-- Hero section wrapper to isolate styles and functionality -->
+    <!-- Hero section -->
     <section class="hero-section" id="hero">
         <HeroCarousel />
     </section>
 
-    <!-- Products section wrapper to isolate styles and functionality -->
+    <!-- Products section -->
     <section class="products-section" id="products">
         <ProductsCarousel />
     </section>
 
-    <!-- Location section placeholder -->
+    <!-- Location section -->
     <section class="location-section" id="location">
-        <div class="section-content">
-            <h2>Our Location</h2>
-            <p>Find us at the heart of Texas. Visit our store for the best jerky around.</p>
-        </div>
+        <Location />
     </section>
 
-    <!-- Retailers section placeholder -->
+    <!-- Retailers section -->
     <section class="retailers-section" id="retailers">
-        <div class="section-content">
-            <h2>Our Retailers</h2>
-            <p>Our jerky is available in select stores nationwide. Find a retailer near you.</p>
-        </div>
-    </section>
-
-    <!-- Order Now section placeholder -->
-    <section class="order-now-section" id="order-now">
-        <div class="section-content">
-            <h2>Order Now</h2>
-            <p>Get your favorite Navarrete Beef Jerky delivered straight to your door.</p>
-            <button class="order-button">Shop Now</button>
-        </div>
+        <Retailers />
     </section>
 </div>
+
 
 <style>
     /* Main content styling to separate the sections and give them space */
@@ -59,8 +46,7 @@
     .hero-section,
     .products-section,
     .location-section,
-    .retailers-section,
-    .order-now-section {
+    .retailers-section{
         position: relative;
         width: 100%; /* Use 100% width to prevent overflow */
         height: 100vh;
