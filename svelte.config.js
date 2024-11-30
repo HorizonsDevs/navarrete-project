@@ -1,13 +1,17 @@
-import adapter from '@sveltejs/adapter-auto';
+import { sveltePreprocess } from 'svelte-preprocess';
+import adapter from '@sveltejs/adapter-static';
 
-/** @type {import('@sveltejs/kit').Config} */
-const config = {
-	kit: {
-		// adapter-auto only supports some environments, see https://svelte.dev/docs/kit/adapter-auto for a list.
-		// If your environment is not supported, or you settled on a specific environment, switch out the adapter.
-		// See https://svelte.dev/docs/kit/adapters for more information about adapters.
-		adapter: adapter()
-	}
+export default {
+  kit: {
+    adapter: adapter({
+		fallback: 'index.html',  // This is typically used for Single Page Applications (SPA)
+	  }),
+    paths: {
+      base: '/navarrete-project',  // GitHub Pages will serve from this path
+    },
+    prerender: {
+      entries: ['*'],  // Ensure everything is prerendered
+    },
+  },
+  preprocess: sveltePreprocess(),
 };
-
-export default config;

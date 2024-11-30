@@ -1,9 +1,12 @@
+
+
 <script>
     import HeroCarousel from '../lib/components/Hero.svelte';
     import ProductsCarousel from '../lib/components/Products.svelte';
     import Location from '../lib/components/Location.svelte';
     import Retailers from '../lib/components/Retailers.svelte';
-	import Footer from '$lib/components/Footer.svelte';
+    import Footer from '$lib/components/Footer.svelte';
+    export const prerender = true;  // This ensures the page is prerendered
 </script>
 
 <div class="content">
@@ -30,7 +33,6 @@
         <Footer/>
     </section>
 </div>
-
 
 <style>
     /* Main content styling to separate the sections and give them space */
