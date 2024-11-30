@@ -1,21 +1,21 @@
+# Node Modules
 node_modules
 
-# Output
+# Build Output
 .output
 .vercel
 /.svelte-kit
-/build
 
-# OS
+# OS Artifacts
 .DS_Store
 Thumbs.db
 
-# Env
+# Environment Variables
 .env
 .env.*
 !.env.example
 !.env.test
 
-# Vite
+# Vite Temporary Files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
