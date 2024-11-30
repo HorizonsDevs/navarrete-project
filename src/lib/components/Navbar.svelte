@@ -1,6 +1,8 @@
 <script>
     import logo from '../assets/logo.svg';
     import { onMount } from 'svelte';
+    import { translations } from '../stores/languageStore';
+    import { get } from 'svelte/store';
 
     let previousScrollY = 0; // Track previous scroll position
     let isVisible = true;    // Control navbar visibility
@@ -25,6 +27,9 @@
 
         return () => window.removeEventListener('scroll', handleScroll);
     });
+
+    // Debugging translations
+    $: console.log("Navbar translations updated:", $translations);
 </script>
 
 <nav class:is-hidden={!isVisible}>
@@ -33,11 +38,19 @@
         <img src={logo} alt="Navarrete Logo" class="logo-image" />
     </button>
     
-    <!-- Navbar links with hover effects -->
-    <a href="#products" on:click|preventDefault={() => scrollToSection('products')} role="link" tabindex="0">PRODUCTS</a>
-    <a href="#location" on:click|preventDefault={() => scrollToSection('location')} role="link" tabindex="0">LOCATION</a>
-    <a href="#retailers" on:click|preventDefault={() => scrollToSection('retailers')} role="link" tabindex="0">RETAILERS</a>
-    <a href="#order-now" on:click|preventDefault={() => scrollToSection('order-now')} role="link" tabindex="0">ORDER NOW</a>
+    <!-- Navbar links use reactive translations -->
+    <a href="#products" on:click|preventDefault={() => scrollToSection('products')} role="link" tabindex="0">
+        {$translations.navbar_products || 'PRODUCTS'}
+    </a>
+    <a href="#location" on:click|preventDefault={() => scrollToSection('location')} role="link" tabindex="0">
+        {$translations.navbar_location || 'LOCATION'}
+    </a>
+    <a href="#retailers" on:click|preventDefault={() => scrollToSection('retailers')} role="link" tabindex="0">
+        {$translations.navbar_retailers || 'RETAILERS'}
+    </a>
+    <a href="#order-now" on:click|preventDefault={() => scrollToSection('order-now')} role="link" tabindex="0">
+        {$translations.navbar_order_now || 'ORDER NOW'}
+    </a>
 </nav>
 
 <style>

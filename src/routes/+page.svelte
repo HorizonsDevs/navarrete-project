@@ -3,6 +3,7 @@
     import ProductsCarousel from '../lib/components/Products.svelte';
     import Location from '../lib/components/Location.svelte';
     import Retailers from '../lib/components/Retailers.svelte';
+	import Footer from '$lib/components/Footer.svelte';
 </script>
 
 <div class="content">
@@ -24,6 +25,9 @@
     <!-- Retailers section -->
     <section class="retailers-section" id="retailers">
         <Retailers />
+    </section>
+    <section>
+        <Footer/>
     </section>
 </div>
 

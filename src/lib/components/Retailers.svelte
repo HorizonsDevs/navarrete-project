@@ -1,4 +1,7 @@
 <script>
+    import { translations } from '../stores/languageStore';
+    import { derived } from 'svelte/store'; // To reactively derive the title
+
     // Import images explicitly
     import img1 from '../images/retailers/img1.png';
     import img2 from '../images/retailers/img2.png';
@@ -10,21 +13,26 @@
     import img8 from '../images/retailers/img8.png';
     import img9 from '../images/retailers/img9.png';
 
+    // List of retailers
     export let retailers = [
-        { name: "Merca Dillo", logo: img1 },
+        { name: "El Patron Sports Bar", logo: img1 },
         { name: "Time Out Sports Cantina", logo: img2 },
         { name: "Oasis Bar", logo: img3 },
-        { name: "Rowdy's", logo: img4 },
-        { name: "Zeke's", logo: img5 },
-        { name: "Good Coffee", logo: img6 },
-        { name: "El Cuademingo", logo: img7 },
-        { name: "Better Time Store", logo: img8 },
-        { name: "Other Retailer", logo: img9 }
+        { name: "Howdy's", logo: img4 },
+        { name: "Mercadillo", logo: img5 },
+        { name: "Zeke's", logo: img6 },
+        { name: "Good Coffee", logo: img7 },
+        { name: "El Cuademingo", logo: img8 },
+        { name: "Better Time Store", logo: img9 },
     ];
+
+    // Dynamically derive the title from translations
+    const title = derived(translations, $translations => $translations.retailers_title || 'Retailers');
 </script>
 
 <div class="retailers-container">
-    <h2>Retailers</h2>
+    <!-- Reactive title -->
+    <h2>{$title}</h2>
     <div class="retailers-grid">
         {#each retailers as retailer}
             <div class="retailer">
@@ -38,7 +46,7 @@
 <style>
     .retailers-container {
         height: 100vh;
-        width:100dvh;
+        width: 100dvh;
         display: flex;
         flex-direction: column;
         align-items: center;

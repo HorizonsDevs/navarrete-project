@@ -1,0 +1,37 @@
+{
+    "hero_slide1_title": "El Sabor de Texas",
+    "hero_slide1_subtitle": "Encontrado en Nuestra Carne Seca",
+    "hero_slide2_title": "Picante y Audaz",
+    "hero_slide2_subtitle": "Un toque de sabor en cada bocado",
+    "hero_slide3_title": "Calidad Superior",
+    "hero_slide3_subtitle": "Solo los mejores cortes para la mejor carne seca",
+    "products": [
+        {
+            "flavor": "Sabor Natural",
+            "description": "Descubre el sabor puro de Navarrete Beef Jerky con nuestro sabor natural. Sin adornos, solo la rica y deliciosa bondad de la carne de res premium sazonada a la perfección."
+        },
+        {
+            "flavor": "Sabor Limón y Pimienta",
+            "description": "La mejor combinación de sabores, sin duda, es limón con pimienta, y en nuestro Navarrete Beef Jerky, sabe aún mejor."
+        },
+        {
+            "flavor": "Sabor Limón Picante",
+            "description": "Experimenta un giro cítrico con el sabor limón picante de Navarrete Beef Jerky. Las notas cítricas refrescantes se encuentran con un toque de picante, creando un sabor vibrante que te dejará con ganas de más."
+        },
+        {
+            "flavor": "Sabor Picante",
+            "description": "Siente el calor con el sabor picante de Navarrete Beef Jerky. Esta atrevida y ardiente mezcla de especias despertará tus sentidos y satisfará tus antojos de algo verdaderamente intenso."
+        }
+    ],
+    "location_title": "Ubicación",
+    "location_description": "Ven a visitarnos en",
+    "location_address": "8152 Dyer St Suite 8202, El Paso, TX 79904",
+    "navbar_products": "PRODUCTOS",
+    "navbar_location": "UBICACIÓN",
+    "navbar_retailers": "MINORISTAS",
+    "navbar_order_now": "ORDENA AHORA",
+    "retailers_title": "Minoristas",
+    "footer_bulk_order_button": "Pedir a Mayoreo",
+    "footer_company_name": "Navarrete El Paso",
+    "footer_rights_reserved": "Todos los derechos reservados."
+}

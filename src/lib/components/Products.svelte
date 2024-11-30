@@ -1,5 +1,6 @@
 <script>
     import { onMount } from 'svelte';
+    import { translations } from '../stores/languageStore';
     import EmblaCarousel from 'embla-carousel';
 
     // Import SVG assets
@@ -8,40 +9,20 @@
     import natural from "../assets/natural.svg";
     import lemonpepper from "../assets/lemonpepper.svg";
 
-    // Product data array
-    const products = [
-        {
-            title: "Beef Jerky",
-            flavor: "Natural Flavor",
-            description: "Discover the pure taste of Navarrete Beef Jerky with our Natural Flavor. No frills, just the rich, savory goodness of premium beef seasoned to perfection.",
-            imageUrl: natural
-        },
-        {
-            title: "Beef Jerky",
-            flavor: "Lemon Pepper Flavor",
-            description: "The best combination of flavors, without a doubt, is lemon with pepper, and in our Navarrete Beef Jerky, it tastes even better.",
-            imageUrl: lemonpepper
-        },
-        {
-            title: "Beef Jerky",
-            flavor: "Spicy Lemon Flavor",
-            description: "Experience a zesty twist with Navarrete Beef Jerky's Spicy Lemon flavor. The refreshing citrus notes meet a kick of spice, creating a vibrant taste that will leave you wanting more.",
-            imageUrl: spicylemon
-        },
-        {
-            title: "Beef Jerky",
-            flavor: "Hot & Spicy Flavor",
-            description: "Feel the heat with Navarrete Beef Jerky's Hot & Spicy flavor. This bold and fiery blend of spices will awaken your senses and satisfy your cravings for something truly intense.",
-            imageUrl: spicy
-        }
-    ];
+    // Associate images with product translations
+    const productImages = [natural, lemonpepper, spicylemon, spicy];
 
     let embla;
     let emblaNode;
 
+    let translatedProducts = []; // Store the translated products
+
+    // Reactive statement to update products when translations change
+    $: translatedProducts = $translations.products || [];
+
     onMount(() => {
         embla = EmblaCarousel(emblaNode, { loop: true, speed: 8 });
-        
+
         scrollNext = () => embla && embla.scrollNext();
         scrollPrev = () => embla && embla.scrollPrev();
     });
@@ -52,10 +33,10 @@
 
 <div class="products-carousel" bind:this={emblaNode}>
     <div class="products-embla__container">
-        {#each products as product}
+        {#each translatedProducts as product, index}
             <div class="products-embla__slide">
                 <div class="product">
-                    <img src={product.imageUrl} alt={product.flavor} class="product-image" />
+                    <img src={productImages[index]} alt={product.flavor} class="product-image" />
                     <div class="product-info">
                         <h1 class="flavor">{product.flavor}</h1>
                         <p class="description">{product.description}</p>
@@ -67,9 +48,10 @@
     </div>
 </div>
 
-<!-- Seamless Navigation buttons specific to ProductsCarousel -->
+<!-- Navigation Buttons -->
 <button on:click={scrollPrev} class="products-nav-button products-prev-button" aria-label="Previous Slide">‹</button>
 <button on:click={scrollNext} class="products-nav-button products-next-button" aria-label="Next Slide">›</button>
+
 
 <style>
     /* Carousel styling */

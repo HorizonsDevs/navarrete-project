@@ -1,0 +1,37 @@
+{
+    "hero_slide1_title": "The Flavor of Texas",
+    "hero_slide1_subtitle": "Found in our Jerky",
+    "hero_slide2_title": "Spicy and Bold",
+    "hero_slide2_subtitle": "A Kick of Flavor in Every Bite",
+    "hero_slide3_title": "Premium Quality",
+    "hero_slide3_subtitle": "Only the Best Cuts for the Best Jerky",
+    "products": [
+        {
+            "flavor": "Natural Flavor",
+            "description": "Discover the pure taste of Navarrete Beef Jerky with our Natural Flavor. No frills, just the rich, savory goodness of premium beef seasoned to perfection."
+        },
+        {
+            "flavor": "Lemon Pepper Flavor",
+            "description": "The best combination of flavors, without a doubt, is lemon with pepper, and in our Navarrete Beef Jerky, it tastes even better."
+        },
+        {
+            "flavor": "Spicy Lemon Flavor",
+            "description": "Experience a zesty twist with Navarrete Beef Jerky's Spicy Lemon flavor. The refreshing citrus notes meet a kick of spice, creating a vibrant taste that will leave you wanting more."
+        },
+        {
+            "flavor": "Hot & Spicy Flavor",
+            "description": "Feel the heat with Navarrete Beef Jerky's Hot & Spicy flavor. This bold and fiery blend of spices will awaken your senses and satisfy your cravings for something truly intense."
+        }
+    ],
+    "location_title": "Location",
+    "location_description": "Come visit us at",
+    "location_address": "8152 Dyer St Suite 8202, El Paso, TX 79904",
+    "navbar_products": "PRODUCTS",
+    "navbar_location": "LOCATION",
+    "navbar_retailers": "RETAILERS",
+    "navbar_order_now": "ORDER NOW",
+    "retailers_title": "Retailers",
+    "footer_bulk_order_button": "Order in Bulk",
+    "footer_company_name": "Navarrete El Paso",
+    "footer_rights_reserved": "All rights reserved."
+}

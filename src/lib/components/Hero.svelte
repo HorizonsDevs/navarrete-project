@@ -1,47 +1,27 @@
 <script>
     import { onMount } from 'svelte';
+    import { translations, language } from '../stores/languageStore';
+    import { get } from 'svelte/store';
     import EmblaCarousel from 'embla-carousel';
-
-    // Import images
     import hero1 from '../images/hero1.webp';
     import hero2 from '../images/hero2.webp';
     import hero3 from '../images/hero3.webp';
 
-    // Original and duplicated slides for a seamless loop
+    // Carousel slides with translation keys
     const slides = [
-        { image: hero1, title: 'The Flavor of Texas', subtitle: 'Found in our Jerky' },
-        { image: hero2, title: 'Spicy and Bold', subtitle: 'A Kick of Flavor in Every Bite' },
-        { image: hero3, title: 'Premium Quality', subtitle: 'Only the Best Cuts for the Best Jerky' }
+        { image: hero1, titleKey: 'hero_slide1_title', subtitleKey: 'hero_slide1_subtitle' },
+        { image: hero2, titleKey: 'hero_slide2_title', subtitleKey: 'hero_slide2_subtitle' },
+        { image: hero3, titleKey: 'hero_slide3_title', subtitleKey: 'hero_slide3_subtitle' }
     ];
-
-    const duplicatedSlides = [...slides, ...slides]; // Duplicate the slides array
 
     let embla;
     let emblaNode;
 
+    // Initialize Embla Carousel
     onMount(() => {
-        embla = EmblaCarousel(emblaNode, { loop: false, speed: 8 });
-
-        // Start at the first slide of the duplicated set to allow immediate backward transition
-        embla.scrollTo(slides.length, true);
-
-        embla.on('select', () => {
-            const selectedIndex = embla.selectedScrollSnap();
-            const totalSlides = duplicatedSlides.length;
-
-            // If we're at the duplicated first slide, jump to the original first slide
-            if (selectedIndex === slides.length) {
-                embla.scrollTo(0, true);
-            }
-            // If we're at the very first slide in the duplicated array, jump to the end of the original slides
-            else if (selectedIndex === 0) {
-                embla.scrollTo(totalSlides - slides.length, true);
-            }
-            // If we're at the duplicated last slide, jump to the original last slide
-            else if (selectedIndex === totalSlides - 1) {
-                embla.scrollTo(slides.length - 1, true);
-            }
-        });
+        console.log("Initializing Embla carousel...");
+        embla = EmblaCarousel(emblaNode, { loop: true, speed: 8 });
+        console.log("Embla instance:", embla);
 
         scrollNext = () => embla && embla.scrollNext();
         scrollPrev = () => embla && embla.scrollPrev();
@@ -49,127 +29,129 @@
 
     let scrollNext = () => {};
     let scrollPrev = () => {};
+
+    // Debugging translation and language changes
+    $: console.log("Updated translations:", $translations);
+    $: console.log("Current language:", $language);
 </script>
 
+<!-- Hero Carousel -->
 <div class="hero-carousel" bind:this={emblaNode}>
-    <div class="embla__container">
-        {#each duplicatedSlides as slide, index}
-            <div class="embla__slide">
-                <img src={slide.image} alt={slide.title} class="slide-image" />
-                <div class="text-overlay">
-                    <h1 class="slide-title">{slide.title}</h1>
-                    <p class="slide-subtitle">{slide.subtitle}</p>
+    <div class="hero-embla__container">
+        {#each slides as slide}
+            <div class="hero-embla__slide">
+                <div class="hero-slide-content">
+                    <img src={slide.image} alt={$translations[slide.titleKey] || 'Missing title'} class="hero-slide-image" />
+                    <div class="hero-slide-text">
+                        <h1 class="hero-title">{$translations[slide.titleKey] || 'Missing title'}</h1>
+                        <p class="hero-subtitle">{$translations[slide.subtitleKey] || 'Missing subtitle'}</p>
+                    </div>
                 </div>
             </div>
         {/each}
     </div>
 </div>
 
-<!-- Updated button classes for consistency -->
-<button on:click={scrollPrev} class="nav-button prev-button" aria-label="Previous Slide">‹</button>
-<button on:click={scrollNext} class="nav-button next-button" aria-label="Next Slide">›</button>
+<!-- Navigation Buttons -->
+<button on:click={scrollPrev} class="hero-nav-button hero-prev-button" aria-label="Previous Slide">‹</button>
+<button on:click={scrollNext} class="hero-nav-button hero-next-button" aria-label="Next Slide">›</button>
 
 <style>
-    /* Carousel styles */
+    /* Ensure the carousel dynamically fits the viewport */
     .hero-carousel {
+        position: relative;
         width: 100vw;
-        height: 100vh;
+        height: 100vh; /* Occupy the full viewport height */
         overflow: hidden;
-        position: relative;
-    }
-
-    .embla__container {
-        display: flex;
-        transition: transform 0.3s ease;
-    }
-
-    .embla__slide {
-        min-width: 100vw;
-        height: 100vh;
-        flex-shrink: 0;
-        position: relative;
         display: flex;
         align-items: center;
         justify-content: center;
     }
 
-    /* Image styling */
-    .slide-image {
+    .hero-embla__container {
+        display: flex;
+        width: 100%;
+    }
+
+    .hero-embla__slide {
+        min-width: 100vw;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+    }
+
+    /* Ensure the image fits the full viewport dynamically */
+    .hero-slide-image {
+        position: absolute;
+        top: 0;
+        left: 0;
         width: 100%;
         height: 100%;
-        object-fit: cover;
+        object-fit: cover; /* Maintain aspect ratio, crop if needed */
+        z-index: -1; /* Place the image behind the text */
     }
 
     /* Text overlay styling */
-    .text-overlay {
+    .hero-slide-text {
         position: absolute;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        z-index: 1;
-        padding: 1em 2em;
-        border-radius: 8px;
-        color: white;
         text-align: center;
-        filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.651));
+        color: white;
+        text-shadow: 0 2px 5px rgba(0, 0, 0, 0.7);
+        padding: 1rem;
     }
 
     /* Title styling */
-    .slide-title {
+    .hero-title {
         font-family: 'Rye', cursive;
-        font-size: 2.5em;
+        font-size: 3vw; /* Dynamically scale based on viewport width */
+        margin-bottom: 0.5em;
         color: #f5a623;
-        stroke: 2px black;
-        margin: 0;
     }
 
     /* Subtitle styling */
-    .slide-subtitle {
+    .hero-subtitle {
         font-family: 'Montserrat', sans-serif;
-        font-size: 1.5em;
-        color: #f5f5f5;
-        margin-top: 0.5em;
+        font-size: 1.5vw; /* Dynamically scale based on viewport width */
+        color: white;
     }
 
-    /* Updated Navigation Button styling */
-    .nav-button {
+    /* Navigation Buttons */
+    .hero-nav-button {
         position: absolute;
         top: 50%;
         transform: translateY(-50%);
-        background-color: rgba(145, 48, 48, 0);
+        background: transparent;
         border: none;
         color: white;
-        font-size: 2.5em;
+        font-size: 2.5vw;
         cursor: pointer;
-        padding: 0.5em;
-        z-index: 2;
+        opacity: 0.7;
+        z-index: 10;
     }
 
-    .prev-button {
-        left: 1em; /* Position arrow on the left side */
+    .hero-prev-button {
+        left: 1em;
     }
 
-    .next-button {
-        right: 1em; /* Position arrow on the right side */
+    .hero-next-button {
+        right: 1em;
     }
 
-    .nav-button:hover {
-        background-color: rgba(0, 0, 0, 0);
-        opacity: .9;
-        transition:cubic-bezier(0.215, 0.610, 0.355, 1)
-    }
-
-    /* Responsive adjustments */
+    /* Adjustments for smaller screens */
     @media (max-width: 768px) {
-        .slide-title {
-            font-size: 1.8em;
+        .hero-title {
+            font-size: 6vw; /* Larger titles for small screens */
         }
-        .slide-subtitle {
-            font-size: 1.2em;
+        .hero-subtitle {
+            font-size: 4vw; /* Larger subtitles for small screens */
         }
-        .nav-button {
-            font-size: 2em;
-            padding: 0.3em;
+        .hero-nav-button {
+            font-size: 5vw;
         }
     }
 </style>
