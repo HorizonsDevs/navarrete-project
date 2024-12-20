@@ -46,7 +46,7 @@
 <style>
     .retailers-container {
         height: 100vh;
-        width: 100dvh;
+        width: 100vw; /* Full viewport width */
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -64,24 +64,27 @@
 
     .retailers-grid {
         display: grid;
-        grid-template-columns: repeat(3, 1fr); /* Create 3 columns for 9 items */
-        grid-auto-rows: 1fr; /* Evenly space the rows */
-        gap: 2rem; /* Add space between items */
-        width: 90%; /* Ensure grid spans a good portion of the container */
+        grid-template-columns: repeat(3, 1fr); /* Original 3-column layout for desktop */
+        gap: 2rem; /* Original spacing */
+        width: 90%;
         max-width: 1200px;
+        height: auto;
     }
 
     .retailer {
         display: flex;
         flex-direction: column;
         align-items: center;
+        justify-content: center;
     }
 
     .retailer-logo {
         width: 100%;
-        max-width: 150px; /* Limit maximum size */
+        max-width: 150px; /* Retain the original size for desktop */
         height: auto;
         margin-bottom: 0.5rem;
+        aspect-ratio: 1 / 1; /* Maintain square proportions */
+        object-fit: contain; /* Ensure logos fit without distortion */
     }
 
     p {
@@ -91,15 +94,40 @@
         text-align: center;
     }
 
+    /* Responsive layout for medium screens */
     @media (max-width: 768px) {
+        h2 {
+            font-size: 2.5rem; /* Reduce title size */
+        }
+
         .retailers-grid {
-            grid-template-columns: repeat(2, 1fr); /* Adjust to 2 columns on smaller screens */
+            grid-template-columns: repeat(2, 1fr); /* Adjust to 2 columns for medium screens */
+            gap: .5rem; /* Slightly reduce spacing */
+        }
+
+        .retailer-logo {
+            max-width: 3.5rem; /* Scale down logo size for medium screens */
         }
     }
 
+    /* Responsive layout for smaller screens */
     @media (max-width: 480px) {
+        h2 {
+            font-size: 2rem; /* Further reduce title size */
+        }
+
         .retailers-grid {
-            grid-template-columns: repeat(1, 1fr); /* Adjust to 1 column on extra small screens */
+            grid-template-columns: repeat(3, 1fr); /* Single column layout for smaller screens */
+            gap: 0.25rem; /* Reduce spacing further */
+            height: 100%; /* Fit the grid within 80% of the viewport height */
+        }
+
+        .retailer-logo {
+            max-width: 75%; /* Adjust logo size to occupy 80% of the viewport */
+        }
+
+        p {
+            font-size: 0.9rem; /* Adjust text size */
         }
     }
 </style>

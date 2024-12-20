@@ -4,13 +4,13 @@ import adapter from '@sveltejs/adapter-static';
 export default {
   kit: {
     adapter: adapter({
-		fallback: 'index.html',  // This is typically used for Single Page Applications (SPA)
-	  }),
+      fallback: 'index.html',  // Still useful for SPA functionality
+    }),
     paths: {
-      base: '/navarrete-project',  // GitHub Pages will serve from this path
+      base: '',  // Removed the base path specific to GitHub Pages
     },
     prerender: {
-      entries: ['*'],  // Ensure everything is prerendered
+      entries: ['*'],  // Retain prerendering unless you explicitly don't want it
     },
   },
   preprocess: sveltePreprocess(),
