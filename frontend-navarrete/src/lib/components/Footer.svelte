@@ -40,13 +40,13 @@
                 <img src={phoneIcon} alt="Phone" class="social-icon" />
             </a>
             <!-- Social Media Icons -->
-            <a href="https://www.instagram.com" target="_blank" aria-label="Instagram">
+            <a href="https://www.instagram.com/carnesecanavarreteelpaso/" target="_blank" aria-label="Instagram">
                 <img src={instagramIcon} alt="Instagram" class="social-icon" />
             </a>
-            <a href="https://www.facebook.com" target="_blank" aria-label="Facebook">
+            <a href="https://www.facebook.com/p/Carne-Seca-Navarrete-100080206413905/" target="_blank" aria-label="Facebook">
                 <img src={facebookIcon} alt="Facebook" class="social-icon" />
             </a>
-            <a href="https://www.tiktok.com" target="_blank" aria-label="TikTok">
+            <a href="https://www.tiktok.com/@carnesecanavarret" target="_blank" aria-label="TikTok">
                 <img src={tiktokIcon} alt="TikTok" class="social-icon" />
             </a>
         </div>

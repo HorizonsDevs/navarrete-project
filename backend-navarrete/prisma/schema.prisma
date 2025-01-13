@@ -1,0 +1,27 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL") // This pulls the connection string from .env
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Product {
+  id           Int      @id @default(autoincrement())
+  name         String   @db.VarChar(100)
+  description  String?  @db.Text
+  price        Float
+  stockQuantity Int     @default(0)
+  imageUrl     String?  @db.VarChar(255)
+  createdAt    DateTime @default(now())
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("customer")
+  createdAt DateTime @default(now())
+}
