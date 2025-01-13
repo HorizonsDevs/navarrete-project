@@ -11,7 +11,7 @@
     import phoneIcon from '../assets/icons/phone.svg'; // Import phone icon
 
     let currentYear;
-    let phoneNumber = "(915)234-3257"; // Default phone number
+    let phoneNumber = "(915)234-3257"; 
 
     // Set the current year
     onMount(() => {

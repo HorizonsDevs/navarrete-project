@@ -1,27 +1,59 @@
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL") // This pulls the connection string from .env
+  url      = env("DATABASE_URL")
 }
 
 generator client {
   provider = "prisma-client-js"
 }
 
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int?
+  action     String
+  timestamp  DateTime @default(now())
+}
+
+model BulkOrder {
+  id         Int      @id @default(autoincrement())
+  customerId Int?
+  details    String
+  createdAt  DateTime @default(now())
+}
+
+model OrderItem {
+  id         Int      @id @default(autoincrement())
+  orderId    Int
+  productId  Int
+  quantity   Int
+  price      Float
+}
+
+model Order {
+  id         Int      @id @default(autoincrement())
+  customerId Int
+  totalPrice Float
+  status     String   @default("pending")
+  createdAt  DateTime @default(now())
+}
+
 model Product {
   id           Int      @id @default(autoincrement())
-  name         String   @db.VarChar(100)
-  description  String?  @db.Text
+  name         String
+  description  String?
   price        Float
   stockQuantity Int     @default(0)
-  imageUrl     String?  @db.VarChar(255)
+  imageUrl     String?
   createdAt    DateTime @default(now())
+
+  @@map("products") // Maps the model to the lowercase "products" table
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  password  String
-  role      String   @default("customer")
-  createdAt DateTime @default(now())
+  id         Int      @id @default(autoincrement())
+  name       String
+  email      String   @unique
+  password   String
+  role       String   @default("customer")
+  createdAt  DateTime @default(now())
 }
