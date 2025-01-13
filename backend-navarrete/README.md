@@ -82,13 +82,6 @@ Before starting, ensure that you have the following installed on your system:
 
     The Swagger UI is available at [http://localhost:3000/api-docs](http://localhost:3000/api-docs).
 
-3. **Test Endpoints:**
-
-    Use tools like [Postman](https://www.postman.com/) or [cURL](https://curl.se/) to test the API endpoints.
-
----
-
-
 ---
 
 ## Deployment
@@ -100,4 +93,4 @@ Before starting, ensure that you have the following installed on your system:
 
 2. **Run the Production Server:**
 
-   - Run the command 'node index.js'
+    - Run the command `node index.js`.
