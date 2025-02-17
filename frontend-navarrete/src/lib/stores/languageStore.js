@@ -1,8 +1,11 @@
-// src/stores/languageStore.js
 import { writable } from 'svelte/store';
 
-// Get user's language from browser, fallback to English
-const userLang = navigator.language?.split('-')[0] || 'en';
+let userLang = 'en'; // Default language fallback
+
+// Check if we are in the browser before accessing navigator
+if (typeof window !== "undefined") {
+    userLang = navigator.language?.split('-')[0] || 'en';
+}
 
 export const language = writable(userLang);
 export const translations = writable({});
