@@ -4,12 +4,27 @@ const dotenv = require('dotenv');
 const { PrismaClient } = require('@prisma/client');
 const swaggerUi = require('swagger-ui-express');
 const swaggerJsDoc = require('swagger-jsdoc');
+const cors = require('cors');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const multer = require('multer');
+const sharp = require('sharp');
+
+// Configure Multer to store images in memory
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
+
+
+// Import user authentication routes
+const userRoutes = require('./routes/userRoutes');
+const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
 dotenv.config();
 
 const app = express();
 const prisma = new PrismaClient();
 app.use(bodyParser.json());
+app.use(cors()); // Enable CORS for frontend communication
 
 // Swagger configuration
 const swaggerOptions = {
@@ -36,6 +51,7 @@ const swaggerOptions = {
     apis: ['./index.js'],
 };
 
+
 const swaggerDocs = swaggerJsDoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
@@ -49,7 +65,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 /**
  * @swagger
- * /users:
+ * /api/users:
  *   get:
  *     summary: Get all users
  *     tags: [Users]
@@ -58,7 +74,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
  *       200:
  *         description: A list of users.
  */
-app.get('/users', async (req, res) => {
+app.get('/api/users', async (req, res) => {
     try {
         const users = await prisma.user.findMany();
         res.json(users);
@@ -70,7 +86,7 @@ app.get('/users', async (req, res) => {
 
 /**
  * @swagger
- * /users/{id}:
+ * /api/users/{id}:
  *   get:
  *     summary: Get a user by ID
  *     tags: [Users]
@@ -79,17 +95,17 @@ app.get('/users', async (req, res) => {
  *       - in: path
  *         name: id
  *         schema:
- *           type: integer
+ *           type: string
  *         required: true
- *         description: The ID of the user to retrieve.
+ *         description: The UUID of the user to retrieve.
  *     responses:
  *       200:
  *         description: Details of the requested user.
  */
-app.get('/users/:id', async (req, res) => {
+app.get('/api/users/:id', async (req, res) => {
     try {
         const user = await prisma.user.findUnique({
-            where: { id: parseInt(req.params.id) },
+            where: { id: req.params.id },
         });
         if (!user) return res.status(404).send('User not found');
         res.json(user);
@@ -101,116 +117,128 @@ app.get('/users/:id', async (req, res) => {
 
 /**
  * @swagger
- * /users:
+ * /api/users/register:
  *   post:
- *     summary: Create a new user
+ *     summary: Register a new user
  *     tags: [Users]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *               email:
- *                 type: string
- *               password:
- *                 type: string
- *               role:
- *                 type: string
+ *     parameters:
+ *       - in: query
+ *         name: name
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The full name of the user.
+ *       - in: query
+ *         name: email
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The email address of the user.
+ *       - in: query
+ *         name: password
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The password for the user account.
  *     responses:
  *       201:
- *         description: User created successfully.
+ *         description: User registered successfully.
  */
-app.post('/users', async (req, res) => {
+app.post('/api/users/register', async (req, res) => {
     try {
-        const { name, email, password, role } = req.body;
+        const { name, email, password } = req.query;
+
+        if (!name || !email || !password) {
+            return res.status(400).json({ error: "Name, email, and password are required" });
+        }
+
+        // Hash the password before storing it
+        const hashedPassword = await bcrypt.hash(password, 10);
+
         const user = await prisma.user.create({
-            data: { name, email, password, role },
+            data: { name, email, password: hashedPassword },
         });
-        res.status(201).json(user);
+
+        res.status(201).json({ message: "User registered successfully!" });
     } catch (err) {
         console.error(err);
-        res.status(500).send('Error creating user');
+        res.status(500).send('Error registering user');
     }
 });
 
 /**
  * @swagger
- * /users/{id}:
- *   put:
- *     summary: Update a user
+ * /api/users/login:
+ *   post:
+ *     summary: User login
  *     tags: [Users]
  *     parameters:
- *       - in: path
- *         name: id
+ *       - in: query
+ *         name: email
  *         schema:
- *           type: integer
+ *           type: string
  *         required: true
- *         description: The ID of the user to update.
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *               email:
- *                 type: string
- *               password:
- *                 type: string
- *               role:
- *                 type: string
+ *         description: The email address of the user.
+ *       - in: query
+ *         name: password
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The user's password.
  *     responses:
  *       200:
- *         description: User updated successfully.
+ *         description: User logged in successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
  */
-app.put('/users/:id', async (req, res) => {
+app.post('/api/users/login', async (req, res) => {
     try {
-        const { id } = req.params;
-        const { name, email, password, role } = req.body;
-        const user = await prisma.user.update({
-            where: { id: parseInt(id) },
-            data: { name, email, password, role },
+        const { email, password } = req.query;
+
+        if (!email || !password) {
+            return res.status(400).json({ error: "Email and password are required" });
+        }
+
+        const user = await prisma.user.findUnique({
+            where: { email },
         });
-        res.json(user);
+
+        if (!user) {
+            return res.status(400).json({ error: 'User not found' });
+        }
+
+        // Compare hashed password
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ error: 'Invalid credentials' });
+        }
+
+        // Generate JWT Token
+        const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, {
+            expiresIn: "7d", // Token expires in 7 days
+        });
+
+        // Return token and user info (excluding password)
+        res.json({
+            token,
+            user: {
+                name: user.name,
+                email: user.email,
+                role: user.role
+            }
+        });
+
     } catch (err) {
         console.error(err);
-        res.status(500).send('Error updating user');
+        res.status(500).send('Error logging in user');
     }
 });
 
-/**
- * @swagger
- * /users/{id}:
- *   delete:
- *     summary: Delete a user
- *     tags: [Users]
- *     parameters:
- *       - in: path
- *         name: id
- *         schema:
- *           type: integer
- *         required: true
- *         description: The ID of the user to delete.
- *     responses:
- *       200:
- *         description: User deleted successfully.
- */
-app.delete('/users/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        await prisma.user.delete({ where: { id: parseInt(id) } });
-        res.send('User deleted successfully');
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Error deleting user');
-    }
-});
 
 // ========================== ORDERS ==========================
 /**
@@ -658,6 +686,288 @@ app.delete('/audit_logs/:id', async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).send('Error deleting audit log');
+    }
+});
+
+// ========================== PRODUCTS ==========================
+/**
+ * @swagger
+ * tags:
+ *   name: Products
+ *   description: Endpoints for managing products
+ */
+
+/**
+ * @swagger
+ * /api/products:
+ *   get:
+ *     summary: Get all products
+ *     tags: [Products]
+ *     description: Retrieve a list of all products.
+ *     responses:
+ *       200:
+ *         description: A list of products.
+ */
+app.get('/api/products', async (req, res) => {
+    try {
+        const products = await prisma.product.findMany();
+        
+        // Convert images to base64
+        const productsWithImages = products.map(product => ({
+            ...product,
+            imageData: product.imageData ? product.imageData.toString('base64') : null
+        }));
+
+        res.json(productsWithImages);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Error fetching products');
+    }
+});
+
+/**
+ * @swagger
+ * /api/products/{id}:
+ *   get:
+ *     summary: Get a product by ID
+ *     tags: [Products]
+ *     description: Retrieve details of a specific product.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The UUID of the product to retrieve.
+ *     responses:
+ *       200:
+ *         description: Details of the requested product.
+ *       404:
+ *         description: Product not found.
+ */
+app.get('/api/products/:id', async (req, res) => {
+    try {
+        const product = await prisma.product.findUnique({
+            where: { id: req.params.id },
+        });
+
+        if (!product) return res.status(404).send('Product not found');
+
+        // Convert image to base64
+        const productData = {
+            ...product,
+            imageData: product.imageData ? product.imageData.toString('base64') : null
+        };
+
+        res.json(productData);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Error fetching product');
+    }
+});
+
+/**
+ * @swagger
+ * /api/products:
+ *   post:
+ *     summary: Create a new product
+ *     tags: [Products]
+ *     consumes:
+ *       - multipart/form-data
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *                 description: The image file for the product.
+ *               name:
+ *                 type: string
+ *                 description: Name of the product.
+ *               description:
+ *                 type: string
+ *                 description: Description of the product.
+ *               price:
+ *                 type: number
+ *                 description: Price of the product.
+ *               stockQuantity:
+ *                 type: integer
+ *                 description: Stock quantity of the product.
+ *     responses:
+ *       201:
+ *         description: Product created successfully.
+ */
+
+
+app.post('/api/products', upload.single('image'), async (req, res) => {
+    try {
+        const { name, description, price, stockQuantity } = req.body;
+
+        let imageData = null;
+        if (req.file) {
+            imageData = await sharp(req.file.buffer)
+                .webp({ quality: 80 }) // Convert to WebP
+                .toBuffer();
+        }
+
+        const product = await prisma.product.create({
+            data: { 
+                name, 
+                description, 
+                price: parseFloat(price), 
+                stockQuantity: parseInt(stockQuantity), 
+                imageData 
+            },
+        });
+
+        res.status(201).json(product);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Error creating product');
+    }
+});
+
+/**
+ * @swagger
+ * /api/products/{id}/image:
+ *   get:
+ *     summary: Get product image by ID
+ *     tags: [Products]
+ *     description: Retrieve the image of a specific product.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The UUID of the product.
+ *     responses:
+ *       200:
+ *         description: The image file.
+ *         content:
+ *           image/webp:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       404:
+ *         description: Image not found.
+ */
+app.get('/api/products/:id/image', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const product = await prisma.product.findUnique({
+            where: { id },
+            select: { imageData: true } // Only retrieve the image data
+        });
+
+        if (!product || !product.imageData) {
+            return res.status(404).send('Image not found');
+        }
+
+        res.setHeader('Content-Type', 'image/webp'); // Set content type
+        res.send(product.imageData); // Send the image as a response
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Error retrieving image');
+    }
+});
+
+
+
+/**
+ * @swagger
+ * /api/products/{id}:
+ *   put:
+ *     summary: Update a product
+ *     tags: [Products]
+ *     consumes:
+ *       - multipart/form-data
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The UUID of the product to update.
+ *       - in: formData
+ *         name: image
+ *         type: file
+ *         description: The new image file for the product.
+ *       - in: formData
+ *         name: name
+ *         type: string
+ *         description: Updated name of the product.
+ *       - in: formData
+ *         name: description
+ *         type: string
+ *         description: Updated description of the product.
+ *       - in: formData
+ *         name: price
+ *         type: number
+ *         description: Updated price of the product.
+ *       - in: formData
+ *         name: stockQuantity
+ *         type: integer
+ *         description: Updated stock quantity of the product.
+ *     responses:
+ *       200:
+ *         description: Product updated successfully.
+ *       404:
+ *         description: Product not found.
+ */
+app.put('/api/products/:id', upload.single('image'), async (req, res) => {
+    try {
+        const { name, description, price, stockQuantity } = req.body;
+        
+        let imageData = null;
+        if (req.file) {
+            imageData = await sharp(req.file.buffer)
+                .webp({ quality: 80 }) // Convert to WebP
+                .toBuffer();
+        }
+
+        const product = await prisma.product.update({
+            where: { id: req.params.id },
+            data: { name, description, price, stockQuantity, ...(imageData && { imageData }) },
+        });
+
+        res.json(product);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Error updating product');
+    }
+});
+
+/**
+ * @swagger
+ * /api/products/{id}:
+ *   delete:
+ *     summary: Delete a product
+ *     tags: [Products]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The UUID of the product to delete.
+ *     responses:
+ *       200:
+ *         description: Product deleted successfully.
+ *       404:
+ *         description: Product not found.
+ */
+app.delete('/api/products/:id', async (req, res) => {
+    try {
+        await prisma.product.delete({ where: { id: req.params.id } });
+        res.send('Product deleted successfully');
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Error deleting product');
     }
 });
 

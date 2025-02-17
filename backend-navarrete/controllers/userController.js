@@ -1,3 +1,4 @@
+const bcrypt = require('bcryptjs');
 const userService = require('../services/userService');
 
 exports.getAllUsers = async (req, res) => {
@@ -58,3 +59,62 @@ exports.deleteUser = async (req, res) => {
         res.status(500).send('Error deleting user');
     }
 };
+
+exports.register = async (req, res) => {
+    try {
+        const { name, email, password } = req.body;
+
+        if (!name || !email || !password) {
+            return res.status(400).json({ error: "Name, email, and password are required" });
+        }
+
+        // Hash the password before storing it
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const token = await userService.registerUser(name, email, hashedPassword);
+        res.json({ token });
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+};
+
+exports.login = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        if (!email || !password) {
+            return res.status(400).json({ error: "Email and password are required" });
+        }
+
+        // Authenticate user
+        const user = await userService.getUserByEmail(email);
+
+        if (!user) {
+            return res.status(400).json({ error: "Invalid credentials" });
+        }
+
+        // Validate password
+        const isPasswordValid = await userService.validatePassword(password, user.password);
+        if (!isPasswordValid) {
+            return res.status(400).json({ error: "Invalid credentials" });
+        }
+
+        // Generate JWT Token
+        const token = userService.generateToken(user);
+
+        // Return user info (excluding password)
+        res.json({
+            token,
+            user: {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                role: user.role
+            }
+        });
+
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+};
+

@@ -7,53 +7,60 @@ generator client {
   provider = "prisma-client-js"
 }
 
-model AuditLog {
-  id         Int      @id @default(autoincrement())
-  userId     Int?
+model audit_log {
+  id         String   @id @default(uuid())
+  user_id    String?
   action     String
   timestamp  DateTime @default(now())
 }
 
-model BulkOrder {
-  id         Int      @id @default(autoincrement())
-  customerId Int?
-  details    String
-  createdAt  DateTime @default(now())
+model bulk_order {
+  id          String   @id @default(uuid())
+  customer_id String?
+  details     String
+  created_at  DateTime @default(now())
 }
 
-model OrderItem {
-  id         Int      @id @default(autoincrement())
-  orderId    Int
-  productId  Int
+model order_item {
+  id         String   @id @default(uuid())
+  order_id   String
+  product_id String
   quantity   Int
   price      Float
 }
 
-model Order {
-  id         Int      @id @default(autoincrement())
-  customerId Int
-  totalPrice Float
-  status     String   @default("pending")
-  createdAt  DateTime @default(now())
+model order {
+  id          String   @id @default(uuid())
+  customer_id String
+  total_price Float
+  status      String   @default("pending")
+  created_at  DateTime @default(now())
 }
 
-model Product {
-  id           Int      @id @default(autoincrement())
-  name         String
-  description  String?
-  price        Float
-  stockQuantity Int     @default(0)
-  imageUrl     String?
-  createdAt    DateTime @default(now())
+model product {
+  id            String   @id @default(uuid())
+  name          String
+  description   String?
+  price         Float
+  stockQuantity Int      @default(0)
+  imageData     Bytes?   // Stores actual image in DB
+  createdAt     DateTime @default(now())
 
   @@map("products") // Maps the model to the lowercase "products" table
 }
 
-model User {
-  id         Int      @id @default(autoincrement())
-  name       String
-  email      String   @unique
-  password   String
-  role       String   @default("customer")
-  createdAt  DateTime @default(now())
+model user {
+  id          String   @id @default(uuid())
+  name        String
+  email       String   @unique
+  password    String
+  role        String   @default("customer")
+  address     String?  // Nullable address field
+  city        String?  // Nullable city field
+  state       String?  // Nullable state field
+  postal_code String?  // Nullable postal code
+  phone_number String?  // Nullable phone number
+  created_at  DateTime @default(now())
+
+  @@map("users") // Maps the model to the lowercase "users" table
 }
