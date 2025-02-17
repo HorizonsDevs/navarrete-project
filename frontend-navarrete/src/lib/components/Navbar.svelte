@@ -60,6 +60,11 @@
         </a>
     </div>
 </nav>
+<div class="contact-banner">
+    <p>
+        {$translations.contact_banner_top} <br /> <br /> {$translations.contact_banner_bottom}
+    </p>
+</div>
 
 <style>
     /* Navbar container */
@@ -97,6 +102,13 @@
         transform: scale(1.1);
         filter: brightness(1.2);
     }
+    .contact-banner {
+		background-color: #1b1b1b;
+		color: white;
+		text-align: center;
+		padding: 1em;
+		font-family: 'Montserrat', sans-serif;
+	}
 
     /* Hamburger menu */
     .hamburger {

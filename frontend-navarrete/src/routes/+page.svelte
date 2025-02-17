@@ -8,11 +8,7 @@
 </script>
 
 <div class="content">
-	<div class="contact-banner">
-		<p>
-			This site is still under construction <br /> <br /> Contact us at: (915) 234-3257 | info@navarretebeefjerky.com
-		</p>
-	</div>
+	
 
 	<!-- Hero section -->
 	<section class="hero-section" id="hero">
@@ -71,13 +67,6 @@
 	.section-content {
 		max-width: 600px;
 		color: white;
-	}
-	.contact-banner {
-		background-color: #1b1b1b;
-		color: white;
-		text-align: center;
-		padding: 1em;
-		font-family: 'Montserrat', sans-serif;
 	}
 	/* Styling for section headings */
 	h2 {

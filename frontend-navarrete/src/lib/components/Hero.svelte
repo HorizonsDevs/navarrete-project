@@ -101,7 +101,7 @@
         transform: translate(-50%, -50%);
         text-align: center;
         color: white;
-        text-shadow: 0 2px 5px rgba(0, 0, 0, 0.7);
+        text-shadow: 0 2px 5px rgba(0, 0, 0, 0.856);
         padding: 1rem;
     }
 
