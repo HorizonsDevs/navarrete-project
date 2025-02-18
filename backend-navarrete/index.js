@@ -9,51 +9,176 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const sharp = require('sharp');
+const helmet = require('helmet');
+const cookieParser = require('cookie-parser');
+const rateLimit = require('express-rate-limit');
+const validator = require('validator');
 
-// Configure Multer to store images in memory
-const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
-
-
-// Import user authentication routes
-const userRoutes = require('./routes/userRoutes');
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
-
+// Load environment variables
 dotenv.config();
 
+if (!process.env.JWT_SECRET) {
+    console.error("FATAL ERROR: JWT_SECRET is not defined!");
+    process.exit(1);
+}
+
+const JWT_SECRET = process.env.JWT_SECRET;
 const app = express();
 const prisma = new PrismaClient();
-app.use(bodyParser.json());
-app.use(cors()); // Enable CORS for frontend communication
 
-// Swagger configuration
+// Middleware
+app.use(helmet());
+app.use(cookieParser());
+app.use(bodyParser.json());
+const allowedOrigins = [
+    'http://localhost:5173',  // Allow frontend running locally
+    'https://yourfrontend.com', 
+    'https://anothertrusteddomain.com'
+];
+
+app.use(cors({
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true, // Allows sending cookies
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+
+// Rate Limiting for Login Attempts
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5, // Limit each IP to 5 login attempts per 15 minutes
+    message: "Too many login attempts. Try again later."
+});
+
+// Configure Multer for secure file uploads
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 2 * 1024 * 1024 }, // 2MB max file size
+    fileFilter: (req, file, cb) => {
+        if (!file.mimetype.startsWith('image/')) {
+            return cb(new Error('Only images are allowed!'), false);
+        }
+        cb(null, true);
+    }
+});
+
+// Swagger Configuration
 const swaggerOptions = {
     definition: {
         openapi: '3.0.0',
         info: {
-            title: 'Navarrete Beef Jerky API',
+            title: 'Secure API',
             version: '1.0.0',
-            description: 'API for managing products, users, orders, and more',
+            description: 'A secure API implementation with JWT authentication and best practices',
         },
         servers: [
-            {
-                url: 'http://localhost:3000',
-            },
+            { url: 'http://localhost:3000' },
         ],
         tags: [
             { name: 'Users', description: 'Endpoints for user management' },
             { name: 'Orders', description: 'Endpoints for order management' },
-            { name: 'Order Items', description: 'Endpoints for order item management' },
-            { name: 'Bulk Orders', description: 'Endpoints for bulk order management' },
-            { name: 'Audit Logs', description: 'Endpoints for audit logs' },
+            { name: 'Products', description: 'Endpoints for product management' },
         ],
     },
     apis: ['./index.js'],
 };
-
-
 const swaggerDocs = swaggerJsDoc(swaggerOptions);
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+
+// Middleware to check if user is seller
+const verifySeller = async (req, res, next) => {
+    try {
+        const token = req.cookies.auth_token;
+        if (!token) return res.status(403).json({ error: 'Access denied' });
+        
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
+        
+        if (!user || user.role !== 'admin') {
+            return res.status(403).json({ error: 'Unauthorized access' });
+        }
+        req.user = user;
+        next();
+    } catch (error) {
+        res.status(401).json({ error: 'Invalid token' });
+    }
+};
+
+// Seller Portal Routes
+app.get('/api/seller/products', verifySeller, async (req, res) => {
+    try {
+        const products = await prisma.product.findMany();
+        res.json(products);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Error fetching products');
+    }
+});
+
+app.post('/api/seller/products', verifySeller, upload.single('image'), async (req, res) => {
+    try {
+        const { name, description, price, stockQuantity } = req.body;
+        let imageData = null;
+        if (req.file) {
+            imageData = await sharp(req.file.buffer).webp({ quality: 80 }).toBuffer();
+        }
+        const product = await prisma.product.create({
+            data: { name, description, price: parseFloat(price), stockQuantity: parseInt(stockQuantity), imageData }
+        });
+        res.status(201).json(product);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Error creating product');
+    }
+});
+
+app.put('/api/seller/products/:id', verifySeller, upload.single('image'), async (req, res) => {
+    try {
+        const { name, description, price, stockQuantity } = req.body;
+        let imageData = null;
+        if (req.file) {
+            imageData = await sharp(req.file.buffer).webp({ quality: 80 }).toBuffer();
+        }
+        const product = await prisma.product.update({
+            where: { id: req.params.id },
+            data: { name, description, price, stockQuantity, ...(imageData && { imageData }) },
+        });
+        res.json(product);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Error updating product');
+    }
+});
+
+app.delete('/api/seller/products/:id', verifySeller, async (req, res) => {
+    try {
+        await prisma.product.delete({ where: { id: req.params.id } });
+        res.send('Product deleted successfully');
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Error deleting product');
+    }
+});
+
+// Protect Swagger API with Authentication
+app.use('/api-docs', (req, res, next) => {
+    const auth = { login: 'admin', password: process.env.SWAGGER_PASSWORD || 'swaggerpass' };
+    const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
+    const [login, password] = Buffer.from(b64auth, 'base64').toString().split(':');
+
+    if (login && password && login === auth.login && password === auth.password) {
+        return next();
+    }
+
+    res.set('WWW-Authenticate', 'Basic realm="401"');
+    res.status(401).send('Authentication required.');
+}, swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 // ========================== USERS ==========================
 /**

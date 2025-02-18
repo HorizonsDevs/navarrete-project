@@ -27,7 +27,7 @@
 		position: relative;
 		width: clamp(280px, 80vw, 1020px);
 		height: clamp(250px, 60vh, 450px);
-		margin: auto;
+		margin: 1rem;
 		border-radius: 12px;
 		box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
 	}

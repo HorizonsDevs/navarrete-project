@@ -1,9 +1,25 @@
 <script>
     import Navbar from '../lib/components/Navbar.svelte';
     import LanguageSwitcher from '../lib/components/LanguageSwitcher.svelte';
-    
-    // This will ensure that all pages using this layout are prerendered
+    import { onMount } from 'svelte';
+    import { goto } from '$app/navigation';
+    import { auth } from '$lib/stores/auth';
+
+    // Ensure all pages using this layout are prerendered
     export const prerender = true;
+
+    let user = null;
+    
+    $: auth.subscribe(value => {
+        user = value?.user;
+    });
+
+    // Redirect sellers/admins to the seller portal, but allow access to regular users
+    onMount(() => {
+        if (user && user.role === 'admin' && window.location.pathname.startsWith('/seller-portal')) {
+            goto('/seller-portal/dashboard');
+        }
+    });
 </script>
 
 <style>

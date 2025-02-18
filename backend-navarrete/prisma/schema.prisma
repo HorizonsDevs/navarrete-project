@@ -7,60 +7,76 @@ generator client {
   provider = "prisma-client-js"
 }
 
-model audit_log {
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?  @map("user_id")
+  action    String
+  timestamp DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+model BulkOrder {
   id         String   @id @default(uuid())
-  user_id    String?
-  action     String
-  timestamp  DateTime @default(now())
+  customerId String?  @map("customer_id")
+  details    String
+  createdAt  DateTime @default(now())
+
+  customer   User?    @relation(fields: [customerId], references: [id], onDelete: Cascade)
 }
 
-model bulk_order {
-  id          String   @id @default(uuid())
-  customer_id String?
-  details     String
-  created_at  DateTime @default(now())
+model OrderItem {
+  id        String   @id @default(uuid())
+  orderId   String   @map("order_id")
+  productId String   @map("product_id")
+  quantity  Int
+  price     Float
+
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
 }
 
-model order_item {
-  id         String   @id @default(uuid())
-  order_id   String
-  product_id String
-  quantity   Int
-  price      Float
+model Order {
+  id         String      @id @default(uuid())
+  customerId String      @map("customer_id")
+  totalPrice Float       @map("total_price")
+  status     String      @default("pending")
+  createdAt  DateTime    @default(now())
+
+  customer   User       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  items      OrderItem[]
 }
 
-model order {
-  id          String   @id @default(uuid())
-  customer_id String
-  total_price Float
-  status      String   @default("pending")
-  created_at  DateTime @default(now())
-}
-
-model product {
+model Product {
   id            String   @id @default(uuid())
   name          String
   description   String?
   price         Float
   stockQuantity Int      @default(0)
-  imageData     Bytes?   // Stores actual image in DB
+  imageData     String?  // Store Base64 encoded image as TEXT
   createdAt     DateTime @default(now())
+
+  orderItems    OrderItem[]
 
   @@map("products") // Maps the model to the lowercase "products" table
 }
 
-model user {
-  id          String   @id @default(uuid())
+model User {
+  id          String      @id @default(uuid())
   name        String
-  email       String   @unique
+  email       String      @unique
   password    String
-  role        String   @default("customer")
-  address     String?  // Nullable address field
-  city        String?  // Nullable city field
-  state       String?  // Nullable state field
-  postal_code String?  // Nullable postal code
-  phone_number String?  // Nullable phone number
-  created_at  DateTime @default(now())
+  role        String      @default("customer")
+  address     String?     
+  city        String?     
+  state       String?     
+  postalCode  String?     @map("postal_code")
+  phoneNumber String?     @map("phone_number")
+  createdAt   DateTime    @default(now())
+
+  orders      Order[]
+  bulkOrders  BulkOrder[]
+  auditLogs   AuditLog[]
 
   @@map("users") // Maps the model to the lowercase "users" table
 }

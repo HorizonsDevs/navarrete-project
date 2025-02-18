@@ -5,7 +5,14 @@ const sharp = require('sharp');
 exports.getAllProducts = async (req, res) => {
     try {
         const products = await productService.getAllProducts();
-        res.json(products);
+
+        // Convert stored images back to Base64 format for frontend rendering
+        const productsWithImages = products.map(product => ({
+            ...product,
+            imageData: product.imageData || null,
+        }));
+
+        res.json(productsWithImages);
     } catch (error) {
         console.error("Error fetching products:", error);
         res.status(500).json({ error: "Failed to retrieve products." });
@@ -18,20 +25,17 @@ exports.getProductById = async (req, res) => {
         const product = await productService.getProductById(req.params.id);
         if (!product) return res.status(404).json({ error: "Product not found." });
 
-        // Convert image binary to Base64 (for direct frontend rendering)
-        const productData = {
+        res.json({
             ...product,
-            imageData: product.imageData ? `data:image/webp;base64,${product.imageData.toString('base64')}` : null
-        };
-
-        res.json(productData);
+            imageData: product.imageData || null, // Ensure proper Base64 format
+        });
     } catch (error) {
         console.error("Error fetching product:", error);
         res.status(500).json({ error: "Failed to retrieve product." });
     }
 };
 
-// Create a new product with WebP image conversion
+// Create a new product with Base64 image conversion
 exports.createProduct = async (req, res) => {
     try {
         const { name, description, price, stockQuantity } = req.body;
@@ -42,10 +46,12 @@ exports.createProduct = async (req, res) => {
 
         let imageData = null;
         if (req.file) {
-            imageData = await sharp(req.file.buffer)
-                .resize(500) // Resize to max 500px width for optimization
+            const optimizedImageBuffer = await sharp(req.file.buffer)
+                .resize(500) // Resize to max 500px width
                 .webp({ quality: 80 }) // Convert to WebP format
                 .toBuffer();
+
+            imageData = `data:image/webp;base64,${optimizedImageBuffer.toString('base64')}`; // Convert buffer to Base64 string
         }
 
         const product = await productService.createProduct({
@@ -53,7 +59,7 @@ exports.createProduct = async (req, res) => {
             description: description || "",
             price: parseFloat(price),
             stockQuantity: parseInt(stockQuantity),
-            imageData
+            imageData, // Store as Base64 string
         });
 
         res.status(201).json(product);
@@ -63,7 +69,8 @@ exports.createProduct = async (req, res) => {
     }
 };
 
-// Update a product with optional WebP image update
+
+// Update a product with optional Base64 image update
 exports.updateProduct = async (req, res) => {
     try {
         const { name, description, price, stockQuantity } = req.body;
@@ -71,20 +78,23 @@ exports.updateProduct = async (req, res) => {
         const product = await productService.getProductById(req.params.id);
         if (!product) return res.status(404).json({ error: "Product not found." });
 
-        let imageData = null;
+        let imageData = product.imageData; // Preserve existing image if no new one is uploaded
+
         if (req.file) {
-            imageData = await sharp(req.file.buffer)
+            const optimizedImageBuffer = await sharp(req.file.buffer)
                 .resize(500)
                 .webp({ quality: 80 })
                 .toBuffer();
+
+            imageData = `data:image/webp;base64,${optimizedImageBuffer.toString('base64')}`;
         }
 
         const updatedProduct = await productService.updateProduct(req.params.id, {
             name: name || product.name,
             description: description || product.description,
-            price: price ? parseFloat(price) : product.price,
-            stockQuantity: stockQuantity ? parseInt(stockQuantity) : product.stockQuantity,
-            ...(imageData && { imageData }) // Update image only if provided
+            price: price !== undefined ? parseFloat(price) : product.price,
+            stockQuantity: stockQuantity !== undefined ? parseInt(stockQuantity) : product.stockQuantity,
+            imageData, // Base64-encoded image
         });
 
         res.json(updatedProduct);
@@ -93,6 +103,7 @@ exports.updateProduct = async (req, res) => {
         res.status(500).json({ error: "Failed to update product." });
     }
 };
+
 
 // Delete a product
 exports.deleteProduct = async (req, res) => {

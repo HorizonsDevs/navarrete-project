@@ -65,6 +65,13 @@
 {/if}
 
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Rye&family=Montserrat:wght@400;700&display=swap');
+
+    /* Global Font */
+    * {
+        font-family: 'Montserrat', sans-serif;
+    }
+
     /* Overlay background */
     .modal-overlay {
         position: fixed;
@@ -72,29 +79,31 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0, 0, 0, 0.5);
+        background: rgba(0, 0, 0, 0.6);
         display: flex;
         justify-content: center;
         align-items: center;
         z-index: 1000;
+        backdrop-filter: blur(5px); /* Slight blur for depth */
     }
 
     /* Modal */
     .modal {
-        background: white;
+        background: #fff;
         padding: 2rem;
-        border-radius: 8px;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        border-radius: 12px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
         display: flex;
         flex-direction: column;
-        gap: 12px;
-        width: 320px;
+        gap: 14px;
+        width: 350px;
+        max-width: 90%;
         animation: fadeIn 0.3s ease-in-out;
     }
 
     @keyframes fadeIn {
         from {
-            transform: translateY(-10px);
+            transform: translateY(-15px);
             opacity: 0;
         }
         to {
@@ -103,20 +112,29 @@
         }
     }
 
+    /* Modal Title */
     .modal-title {
-        font-size: 1.5rem;
-        font-weight: bold;
+        font-family: 'Rye', cursive;
+        font-size: 1.7rem;
         text-align: center;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.75rem;
+        color: #333;
     }
 
     /* Input fields */
     input {
         width: 100%;
-        padding: 10px;
+        padding: 12px;
         border: 1px solid #ccc;
-        border-radius: 5px;
+        border-radius: 8px;
         font-size: 1rem;
+        transition: all 0.2s ease;
+        outline: none;
+    }
+
+    input:focus {
+        border-color: #A72608;
+        box-shadow: 0 0 5px rgba(167, 38, 8, 0.4);
     }
 
     /* Auth button */
@@ -124,15 +142,17 @@
         background: #A72608;
         color: white;
         border: none;
-        padding: 10px;
+        padding: 12px;
         cursor: pointer;
         font-size: 1rem;
-        border-radius: 5px;
-        transition: background 0.2s ease;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        font-weight: bold;
     }
 
     .auth-btn:hover {
         background: #d03a17;
+        transform: scale(1.02);
     }
 
     /* Toggle link */
@@ -142,6 +162,7 @@
         font-size: 0.9rem;
         cursor: pointer;
         margin-top: 5px;
+        font-weight: 500;
     }
 
     .toggle-auth:hover {
@@ -150,25 +171,29 @@
 
     /* Error message */
     .error {
-        color: red;
+        color: #d9534f;
         text-align: center;
         font-size: 0.9rem;
+        background: rgba(217, 83, 79, 0.1);
+        padding: 6px;
+        border-radius: 5px;
     }
 
     /* Close button */
     .close-btn {
         margin-top: 10px;
-        background: gray;
+        background: #666;
         color: white;
         border: none;
-        padding: 8px;
+        padding: 10px;
         cursor: pointer;
         font-size: 0.9rem;
-        border-radius: 5px;
-        transition: background 0.2s ease;
+        border-radius: 8px;
+        transition: all 0.2s ease;
     }
 
     .close-btn:hover {
-        background: darkgray;
+        background: #444;
+        transform: scale(1.05);
     }
 </style>
