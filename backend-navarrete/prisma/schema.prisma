@@ -37,42 +37,46 @@ model OrderItem {
 }
 
 model Order {
-  id         String      @id @default(uuid())
-  customerId String      @map("customer_id")
-  totalPrice Float       @map("total_price")
-  status     String      @default("pending")
-  createdAt  DateTime    @default(now())
+  id                     String      @id @default(uuid())
+  customerId             String      @map("customer_id")
+  totalPrice             Float       @map("total_price")
+  status                 String      @default("pending")
+  createdAt              DateTime    @default(now())
+  stripePaymentIntentId  String?     @map("stripe_payment_intent_id") // Stripe Payment Intent ID
 
   customer   User       @relation(fields: [customerId], references: [id], onDelete: Cascade)
   items      OrderItem[]
 }
 
 model Product {
-  id            String   @id @default(uuid())
-  name          String
-  description   String?
-  price         Float
-  stockQuantity Int      @default(0)
-  imageData     String?  // Store Base64 encoded image as TEXT
-  createdAt     DateTime @default(now())
+  id             String   @id @default(uuid())
+  name           String
+  description    String?
+  price          Float
+  stockQuantity  Int      @default(0)
+  imageUrl       String?  // Store image path instead of Base64
+  createdAt      DateTime @default(now())
+  stripeProductId String? @map("stripe_product_id") // Stripe Product ID
+  stripePriceId   String? @map("stripe_price_id")   // Stripe Price ID
 
-  orderItems    OrderItem[]
+  orderItems     OrderItem[]
 
   @@map("products") // Maps the model to the lowercase "products" table
 }
 
 model User {
-  id          String      @id @default(uuid())
-  name        String
-  email       String      @unique
-  password    String
-  role        String      @default("customer")
-  address     String?     
-  city        String?     
-  state       String?     
-  postalCode  String?     @map("postal_code")
-  phoneNumber String?     @map("phone_number")
-  createdAt   DateTime    @default(now())
+  id               String      @id @default(uuid())
+  name             String
+  email            String      @unique
+  password         String
+  role             String      @default("customer")
+  address          String?     
+  city            String?     
+  state           String?     
+  postalCode       String?     @map("postal_code")
+  phoneNumber      String?     @map("phone_number")
+  createdAt        DateTime    @default(now())
+  stripeCustomerId String?     @map("stripe_customer_id") // Stripe Customer ID
 
   orders      Order[]
   bulkOrders  BulkOrder[]

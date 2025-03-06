@@ -1,15 +1,38 @@
 const productService = require('../services/productService');
 const sharp = require('sharp');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY); // Stripe API Key
+const multer = require('multer');
+const path = require('path');
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'uploads/'); // Save images in the `uploads` directory
+    },
+    filename: (req, file, cb) => {
+        cb(null, Date.now() + path.extname(file.originalname)); // Unique filename
+    }
+});
+
+const upload = multer({
+    storage: storage,
+    limits: { fileSize: 2 * 1024 * 1024 }, // 2MB limit
+    fileFilter: (req, file, cb) => {
+        if (!file.mimetype.startsWith('image/')) {
+            return cb(new Error('Only images are allowed!'), false);
+        }
+        cb(null, true);
+    }
+});
+
 
 // Get all products
 exports.getAllProducts = async (req, res) => {
     try {
         const products = await productService.getAllProducts();
 
-        // Convert stored images back to Base64 format for frontend rendering
         const productsWithImages = products.map(product => ({
             ...product,
-            imageData: product.imageData || null,
+            imageUrl: product.imageUrl ? `http://localhost:3000${product.imageUrl}` : null,
         }));
 
         res.json(productsWithImages);
@@ -27,7 +50,7 @@ exports.getProductById = async (req, res) => {
 
         res.json({
             ...product,
-            imageData: product.imageData || null, // Ensure proper Base64 format
+            imageUrl: product.imageUrl ? `http://localhost:3000${product.imageUrl}` : null,
         });
     } catch (error) {
         console.error("Error fetching product:", error);
@@ -35,7 +58,7 @@ exports.getProductById = async (req, res) => {
     }
 };
 
-// Create a new product with Base64 image conversion
+// Create a new product in both DB and Stripe
 exports.createProduct = async (req, res) => {
     try {
         const { name, description, price, stockQuantity } = req.body;
@@ -44,22 +67,34 @@ exports.createProduct = async (req, res) => {
             return res.status(400).json({ error: "Name, price, and stockQuantity are required." });
         }
 
-        let imageData = null;
+        let imageUrl = null;
         if (req.file) {
-            const optimizedImageBuffer = await sharp(req.file.buffer)
-                .resize(500) // Resize to max 500px width
-                .webp({ quality: 80 }) // Convert to WebP format
-                .toBuffer();
-
-            imageData = `data:image/webp;base64,${optimizedImageBuffer.toString('base64')}`; // Convert buffer to Base64 string
+            imageUrl = `/uploads/${req.file.filename}`; // Store the image path
         }
 
+        // Create Stripe product
+        const stripeProduct = await stripe.products.create({
+            name,
+            description: description || "",
+            images: imageUrl ? [`http://localhost:3000${imageUrl}`] : [], // Pass full URL to Stripe
+        });
+
+        // Create Stripe price
+        const stripePrice = await stripe.prices.create({
+            unit_amount: Math.round(price * 100),
+            currency: 'usd',
+            product: stripeProduct.id,
+        });
+
+        // Save product in DB
         const product = await productService.createProduct({
             name,
             description: description || "",
             price: parseFloat(price),
             stockQuantity: parseInt(stockQuantity),
-            imageData, // Store as Base64 string
+            imageUrl, // Save image path, not binary data
+            stripeProductId: stripeProduct.id,
+            stripePriceId: stripePrice.id,
         });
 
         res.status(201).json(product);
@@ -70,7 +105,7 @@ exports.createProduct = async (req, res) => {
 };
 
 
-// Update a product with optional Base64 image update
+// Update a product in both DB and Stripe
 exports.updateProduct = async (req, res) => {
     try {
         const { name, description, price, stockQuantity } = req.body;
@@ -78,23 +113,27 @@ exports.updateProduct = async (req, res) => {
         const product = await productService.getProductById(req.params.id);
         if (!product) return res.status(404).json({ error: "Product not found." });
 
-        let imageData = product.imageData; // Preserve existing image if no new one is uploaded
-
+        let imageUrl = product.imageUrl;
         if (req.file) {
-            const optimizedImageBuffer = await sharp(req.file.buffer)
-                .resize(500)
-                .webp({ quality: 80 })
-                .toBuffer();
-
-            imageData = `data:image/webp;base64,${optimizedImageBuffer.toString('base64')}`;
+            imageUrl = `/uploads/${req.file.filename}`; // Update image URL
         }
 
+        // Update Stripe product
+        if (product.stripeProductId) {
+            await stripe.products.update(product.stripeProductId, {
+                name: name || product.name,
+                description: description || product.description,
+                images: imageUrl ? [`http://localhost:3000${imageUrl}`] : [],
+            });
+        }
+
+        // Update DB
         const updatedProduct = await productService.updateProduct(req.params.id, {
             name: name || product.name,
             description: description || product.description,
             price: price !== undefined ? parseFloat(price) : product.price,
             stockQuantity: stockQuantity !== undefined ? parseInt(stockQuantity) : product.stockQuantity,
-            imageData, // Base64-encoded image
+            imageUrl, // Store the new image path
         });
 
         res.json(updatedProduct);
@@ -105,11 +144,20 @@ exports.updateProduct = async (req, res) => {
 };
 
 
-// Delete a product
+// Delete a product from both DB and Stripe
 exports.deleteProduct = async (req, res) => {
     try {
+        const product = await productService.getProductById(req.params.id);
+        if (!product) return res.status(404).json({ error: "Product not found." });
+
+        // Delete Stripe product
+        if (product.stripeProductId) {
+            await stripe.products.del(product.stripeProductId);
+        }
+
+        // Delete from DB
         const success = await productService.deleteProduct(req.params.id);
-        if (!success) return res.status(404).json({ error: "Product not found." });
+        if (!success) return res.status(500).json({ error: "Failed to delete product from DB." });
 
         res.json({ message: "Product deleted successfully." });
     } catch (error) {

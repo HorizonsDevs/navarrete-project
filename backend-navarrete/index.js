@@ -13,9 +13,14 @@ const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const validator = require('validator');
+const Stripe = require('stripe');
+const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+
 
 // Load environment variables
 dotenv.config();
+
+
 
 if (!process.env.JWT_SECRET) {
     console.error("FATAL ERROR: JWT_SECRET is not defined!");
@@ -37,17 +42,12 @@ const allowedOrigins = [
 ];
 
 app.use(cors({
-    origin: function (origin, callback) {
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
+    origin: '*', // Allows all origins
     credentials: true, // Allows sending cookies
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 
 
 // Rate Limiting for Login Attempts
@@ -181,6 +181,7 @@ app.use('/api-docs', (req, res, next) => {
 }, swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 // ========================== USERS ==========================
+
 /**
  * @swagger
  * tags:
@@ -195,9 +196,29 @@ app.use('/api-docs', (req, res, next) => {
  *     summary: Get all users
  *     tags: [Users]
  *     description: Retrieve a list of all users.
+ *     security:
+ *       - BearerAuth: []
  *     responses:
  *       200:
  *         description: A list of users.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                   name:
+ *                     type: string
+ *                   email:
+ *                     type: string
+ *                   role:
+ *                     type: string
+ *                   stripeCustomerId:
+ *                     type: string
+ *                     nullable: true
  */
 app.get('/api/users', async (req, res) => {
     try {
@@ -225,7 +246,25 @@ app.get('/api/users', async (req, res) => {
  *         description: The UUID of the user to retrieve.
  *     responses:
  *       200:
- *         description: Details of the requested user.
+ *         description: User details retrieved successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                 name:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 role:
+ *                   type: string
+ *                 stripeCustomerId:
+ *                   type: string
+ *                   nullable: true
+ *       404:
+ *         description: User not found.
  */
 app.get('/api/users/:id', async (req, res) => {
     try {
@@ -246,32 +285,41 @@ app.get('/api/users/:id', async (req, res) => {
  *   post:
  *     summary: Register a new user
  *     tags: [Users]
- *     parameters:
- *       - in: query
- *         name: name
- *         schema:
- *           type: string
- *         required: true
- *         description: The full name of the user.
- *       - in: query
- *         name: email
- *         schema:
- *           type: string
- *         required: true
- *         description: The email address of the user.
- *       - in: query
- *         name: password
- *         schema:
- *           type: string
- *         required: true
- *         description: The password for the user account.
+ *     description: Creates a new user and generates a Stripe Customer ID.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: The full name of the user.
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: The email address of the user.
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 description: The password for the user account.
  *     responses:
  *       201:
  *         description: User registered successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 stripeCustomerId:
+ *                   type: string
  */
 app.post('/api/users/register', async (req, res) => {
     try {
-        const { name, email, password } = req.query;
+        const { name, email, password } = req.body;
 
         if (!name || !email || !password) {
             return res.status(400).json({ error: "Name, email, and password are required" });
@@ -280,11 +328,19 @@ app.post('/api/users/register', async (req, res) => {
         // Hash the password before storing it
         const hashedPassword = await bcrypt.hash(password, 10);
 
+        // Create user and generate Stripe Customer ID
+        const stripeCustomer = await stripe.customers.create({ name, email });
+
         const user = await prisma.user.create({
-            data: { name, email, password: hashedPassword },
+            data: {
+                name,
+                email,
+                password: hashedPassword,
+                stripeCustomerId: stripeCustomer.id,
+            },
         });
 
-        res.status(201).json({ message: "User registered successfully!" });
+        res.status(201).json({ message: "User registered successfully!", stripeCustomerId: stripeCustomer.id });
     } catch (err) {
         console.error(err);
         res.status(500).send('Error registering user');
@@ -297,19 +353,22 @@ app.post('/api/users/register', async (req, res) => {
  *   post:
  *     summary: User login
  *     tags: [Users]
- *     parameters:
- *       - in: query
- *         name: email
- *         schema:
- *           type: string
- *         required: true
- *         description: The email address of the user.
- *       - in: query
- *         name: password
- *         schema:
- *           type: string
- *         required: true
- *         description: The user's password.
+ *     description: Authenticate user and return a JWT token.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: The email address of the user.
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 description: The user's password.
  *     responses:
  *       200:
  *         description: User logged in successfully
@@ -320,10 +379,24 @@ app.post('/api/users/register', async (req, res) => {
  *               properties:
  *                 token:
  *                   type: string
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *                     stripeCustomerId:
+ *                       type: string
+ *                       nullable: true
  */
 app.post('/api/users/login', async (req, res) => {
     try {
-        const { email, password } = req.query;
+        const { email, password } = req.body;
 
         if (!email || !password) {
             return res.status(400).json({ error: "Email and password are required" });
@@ -352,9 +425,11 @@ app.post('/api/users/login', async (req, res) => {
         res.json({
             token,
             user: {
+                id: user.id,
                 name: user.name,
                 email: user.email,
-                role: user.role
+                role: user.role,
+                stripeCustomerId: user.stripeCustomerId,
             }
         });
 
@@ -363,6 +438,7 @@ app.post('/api/users/login', async (req, res) => {
         res.status(500).send('Error logging in user');
     }
 });
+
 
 
 // ========================== ORDERS ==========================
@@ -815,6 +891,7 @@ app.delete('/audit_logs/:id', async (req, res) => {
 });
 
 // ========================== PRODUCTS ==========================
+
 /**
  * @swagger
  * tags:
@@ -832,18 +909,38 @@ app.delete('/audit_logs/:id', async (req, res) => {
  *     responses:
  *       200:
  *         description: A list of products.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                   name:
+ *                     type: string
+ *                   description:
+ *                     type: string
+ *                   price:
+ *                     type: number
+ *                   stockQuantity:
+ *                     type: integer
+ *                   stripeProductId:
+ *                     type: string
+ *                     nullable: true
+ *                   stripePriceId:
+ *                     type: string
+ *                     nullable: true
+ *                   imageData:
+ *                     type: string
+ *                     nullable: true
+ *                     description: Base64-encoded image data.
  */
 app.get('/api/products', async (req, res) => {
     try {
         const products = await prisma.product.findMany();
-        
-        // Convert images to base64
-        const productsWithImages = products.map(product => ({
-            ...product,
-            imageData: product.imageData ? product.imageData.toString('base64') : null
-        }));
-
-        res.json(productsWithImages);
+        res.json(products);
     } catch (err) {
         console.error(err);
         res.status(500).send('Error fetching products');
@@ -867,6 +964,31 @@ app.get('/api/products', async (req, res) => {
  *     responses:
  *       200:
  *         description: Details of the requested product.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                 name:
+ *                   type: string
+ *                 description:
+ *                   type: string
+ *                 price:
+ *                   type: number
+ *                 stockQuantity:
+ *                   type: integer
+ *                 stripeProductId:
+ *                   type: string
+ *                   nullable: true
+ *                 stripePriceId:
+ *                   type: string
+ *                   nullable: true
+ *                 imageData:
+ *                   type: string
+ *                   nullable: true
+ *                   description: Base64-encoded image data.
  *       404:
  *         description: Product not found.
  */
@@ -875,16 +997,8 @@ app.get('/api/products/:id', async (req, res) => {
         const product = await prisma.product.findUnique({
             where: { id: req.params.id },
         });
-
         if (!product) return res.status(404).send('Product not found');
-
-        // Convert image to base64
-        const productData = {
-            ...product,
-            imageData: product.imageData ? product.imageData.toString('base64') : null
-        };
-
-        res.json(productData);
+        res.json(product);
     } catch (err) {
         console.error(err);
         res.status(500).send('Error fetching product');
@@ -912,41 +1026,27 @@ app.get('/api/products/:id', async (req, res) => {
  *                 description: The image file for the product.
  *               name:
  *                 type: string
- *                 description: Name of the product.
  *               description:
  *                 type: string
- *                 description: Description of the product.
  *               price:
  *                 type: number
- *                 description: Price of the product.
  *               stockQuantity:
  *                 type: integer
- *                 description: Stock quantity of the product.
  *     responses:
  *       201:
  *         description: Product created successfully.
  */
-
-
 app.post('/api/products', upload.single('image'), async (req, res) => {
     try {
         const { name, description, price, stockQuantity } = req.body;
-
         let imageData = null;
+
         if (req.file) {
-            imageData = await sharp(req.file.buffer)
-                .webp({ quality: 80 }) // Convert to WebP
-                .toBuffer();
+            imageData = await sharp(req.file.buffer).webp({ quality: 80 }).toBuffer();
         }
 
         const product = await prisma.product.create({
-            data: { 
-                name, 
-                description, 
-                price: parseFloat(price), 
-                stockQuantity: parseInt(stockQuantity), 
-                imageData 
-            },
+            data: { name, description, price: parseFloat(price), stockQuantity: parseInt(stockQuantity), imageData },
         });
 
         res.status(201).json(product);
@@ -955,53 +1055,6 @@ app.post('/api/products', upload.single('image'), async (req, res) => {
         res.status(500).send('Error creating product');
     }
 });
-
-/**
- * @swagger
- * /api/products/{id}/image:
- *   get:
- *     summary: Get product image by ID
- *     tags: [Products]
- *     description: Retrieve the image of a specific product.
- *     parameters:
- *       - in: path
- *         name: id
- *         schema:
- *           type: string
- *         required: true
- *         description: The UUID of the product.
- *     responses:
- *       200:
- *         description: The image file.
- *         content:
- *           image/webp:
- *             schema:
- *               type: string
- *               format: binary
- *       404:
- *         description: Image not found.
- */
-app.get('/api/products/:id/image', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const product = await prisma.product.findUnique({
-            where: { id },
-            select: { imageData: true } // Only retrieve the image data
-        });
-
-        if (!product || !product.imageData) {
-            return res.status(404).send('Image not found');
-        }
-
-        res.setHeader('Content-Type', 'image/webp'); // Set content type
-        res.send(product.imageData); // Send the image as a response
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Error retrieving image');
-    }
-});
-
-
 
 /**
  * @swagger
@@ -1018,26 +1071,25 @@ app.get('/api/products/:id/image', async (req, res) => {
  *           type: string
  *         required: true
  *         description: The UUID of the product to update.
- *       - in: formData
- *         name: image
- *         type: file
- *         description: The new image file for the product.
- *       - in: formData
- *         name: name
- *         type: string
- *         description: Updated name of the product.
- *       - in: formData
- *         name: description
- *         type: string
- *         description: Updated description of the product.
- *       - in: formData
- *         name: price
- *         type: number
- *         description: Updated price of the product.
- *       - in: formData
- *         name: stockQuantity
- *         type: integer
- *         description: Updated stock quantity of the product.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *                 description: The new image file for the product.
+ *               name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               price:
+ *                 type: number
+ *               stockQuantity:
+ *                 type: integer
  *     responses:
  *       200:
  *         description: Product updated successfully.
@@ -1047,12 +1099,10 @@ app.get('/api/products/:id/image', async (req, res) => {
 app.put('/api/products/:id', upload.single('image'), async (req, res) => {
     try {
         const { name, description, price, stockQuantity } = req.body;
-        
         let imageData = null;
+
         if (req.file) {
-            imageData = await sharp(req.file.buffer)
-                .webp({ quality: 80 }) // Convert to WebP
-                .toBuffer();
+            imageData = await sharp(req.file.buffer).webp({ quality: 80 }).toBuffer();
         }
 
         const product = await prisma.product.update({
@@ -1096,9 +1146,8 @@ app.delete('/api/products/:id', async (req, res) => {
     }
 });
 
-
-// Start the server
 const PORT = process.env.PORT || 3000;
+
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
     console.log(`Swagger docs available at http://localhost:${PORT}/api-docs`);
