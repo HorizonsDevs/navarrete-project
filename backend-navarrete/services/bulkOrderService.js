@@ -1,32 +1,51 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../prismaClient');
+const bulkOrderService = require('../services/bulkOrderService');
 
+
+// 🟢 Get all bulk orders (Admin Only)
 exports.getAllBulkOrders = async () => {
-    return await prisma.bulkOrder.findMany();
-};
-
-exports.getBulkOrderById = async (id) => {
-    return await prisma.bulkOrder.findUnique({
-        where: { id: parseInt(id) },
+    return await prisma.bulk_order.findMany({
+        include: { customer: true }
     });
 };
 
-exports.createBulkOrder = async (data) => {
-    return await prisma.bulkOrder.create({
-        data,
+// 🔵 Get bulk order by ID
+exports.getBulkOrderById = async (bulkOrderId) => {
+    return await prisma.bulk_order.findUnique({
+        where: { id: bulkOrderId },
+        include: { customer: true }
     });
 };
 
-exports.updateBulkOrder = async (id, data) => {
-    return await prisma.bulkOrder.update({
-        where: { id: parseInt(id) },
-        data,
+// 🟢 Create a new bulk order request
+exports.createBulkOrder = async ({ customerId, details, amount, status }) => {
+    return await prisma.bulk_order.create({
+        data: {
+            customerId,
+            details,
+            amount,
+            status
+        }
     });
 };
 
-exports.deleteBulkOrder = async (id) => {
-    const deleted = await prisma.bulkOrder.delete({
-        where: { id: parseInt(id) },
+// 🟠 Update bulk order status (Approval, Payment Link, Mark as Paid)
+exports.updateBulkOrder = async (req, res) => {
+    try {
+        const updatedBulkOrder = await bulkOrderService.updateBulkOrder(req.params.id, req.body);
+        if (!updatedBulkOrder) {
+            return res.status(404).json({ error: "Bulk order not found" });
+        }
+        res.json(updatedBulkOrder);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Failed to update bulk order" });
+    }
+};
+
+// 🔴 Delete bulk order (Admin Only)
+exports.deleteBulkOrder = async (bulkOrderId) => {
+    return await prisma.bulk_order.delete({
+        where: { id: bulkOrderId }
     });
-    return deleted ? true : false;
 };

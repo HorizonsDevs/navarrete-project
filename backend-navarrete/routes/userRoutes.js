@@ -1,24 +1,16 @@
 const express = require('express');
-const {
-    register, login, getAllUsers, getUserById,
-    createUser, updateUser, deleteUser
-} = require('../controllers/userController');
-const { authMiddleware } = require('../middleware/authMiddleware');
+const userController = require('../controllers/userController');
+const authMiddleware = require('../middlewares/authMiddleware');
 
 const router = express.Router();
 
-// Public routes
-router.post('/register', register);
-router.post('/login', login);
+router.get('/', authMiddleware.protect, authMiddleware.adminOnly, userController.getAllUsers);
+router.get('/:id', authMiddleware.protect, userController.getUserById);
+router.post('/', authMiddleware.protect, authMiddleware.adminOnly, userController.createUser);
+router.put('/:id', authMiddleware.protect, userController.updateUser);
+router.delete('/:id', authMiddleware.protect, authMiddleware.adminOnly, userController.deleteUser);
 
-// Protected routes (require authentication)
-router.get('/', authMiddleware, getAllUsers);
-router.get('/:id', authMiddleware, getUserById);
-router.post('/', authMiddleware, createUser);
-router.put('/:id', authMiddleware, updateUser);
-router.delete('/:id', authMiddleware, deleteUser);
-router.get('/profile', authMiddleware, (req, res) => {
-    res.json({ message: "Welcome!", user: req.user });
-});
+router.post('/register', userController.register);
+router.post('/login', userController.login);
 
 module.exports = router;

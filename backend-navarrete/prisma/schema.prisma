@@ -7,80 +7,161 @@ generator client {
   provider = "prisma-client-js"
 }
 
-model AuditLog {
+model audit_log {
   id        String   @id @default(uuid())
-  userId    String?  @map("user_id")
+  user_id   String?
   action    String
   timestamp DateTime @default(now())
 
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user user? @relation(fields: [user_id], references: [id], onDelete: SetNull)
 }
 
-model BulkOrder {
-  id         String   @id @default(uuid())
-  customerId String?  @map("customer_id")
-  details    String
-  createdAt  DateTime @default(now())
+model bulk_order {
+  id          String   @id @default(uuid())
+  customer_id String?
+  details     String
+  created_at  DateTime @default(now())
 
-  customer   User?    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer user? @relation(fields: [customer_id], references: [id], onDelete: Cascade)
 }
 
-model OrderItem {
-  id        String   @id @default(uuid())
-  orderId   String   @map("order_id")
-  productId String   @map("product_id")
-  quantity  Int
-  price     Float
+model order_item {
+  id         String @id @default(uuid())
+  order_id   String
+  product_id String
+  quantity   Int
+  price      Float
 
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  order   order   @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  product product @relation(fields: [product_id], references: [id], onDelete: Restrict)
 }
 
-model Order {
-  id                     String      @id @default(uuid())
-  customerId             String      @map("customer_id")
-  totalPrice             Float       @map("total_price")
-  status                 String      @default("pending")
-  createdAt              DateTime    @default(now())
-  stripePaymentIntentId  String?     @map("stripe_payment_intent_id") // Stripe Payment Intent ID
+model order {
+  id                       String   @id @default(uuid())
+  customer_id              String
+  total_price              Float
+  status                   String   @default("pending")
+  created_at               DateTime @default(now())
+  stripe_payment_intent_id String?
+  stripe_charge_id         String?
+  stripe_invoice_id        String?
+  stripe_refund_id         String?
 
-  customer   User       @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  items      OrderItem[]
+  customer user         @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+  items    order_item[]
 }
 
-model Product {
-  id             String   @id @default(uuid())
-  name           String
-  description    String?
-  price          Float
-  stockQuantity  Int      @default(0)
-  imageUrl       String?  // Store image path instead of Base64
-  createdAt      DateTime @default(now())
-  stripeProductId String? @map("stripe_product_id") // Stripe Product ID
-  stripePriceId   String? @map("stripe_price_id")   // Stripe Price ID
+model product {
+  id                String   @id @default(uuid())
+  name              String
+  description       String?
+  price             Float
+  stock_quantity    Int      @default(0)
+  image_url         String?
+  created_at        DateTime @default(now())
+  stripe_product_id String?
+  stripe_price_id   String?
 
-  orderItems     OrderItem[]
+  seller_id  String
+  seller     user         @relation(fields: [seller_id], references: [id], onDelete: Cascade, name: "seller_products")
+  order_item order_item[]
 
-  @@map("products") // Maps the model to the lowercase "products" table
+  @@map("products")
 }
 
-model User {
-  id               String      @id @default(uuid())
-  name             String
-  email            String      @unique
-  password         String
-  role             String      @default("customer")
-  address          String?     
-  city            String?     
-  state           String?     
-  postalCode       String?     @map("postal_code")
-  phoneNumber      String?     @map("phone_number")
-  createdAt        DateTime    @default(now())
-  stripeCustomerId String?     @map("stripe_customer_id") // Stripe Customer ID
+model user {
+  id                     String   @id @default(uuid())
+  name                   String
+  email                  String   @unique
+  password               String
+  role                   String   @default("customer") // customer | seller | admin
+  address                String?
+  city                   String?
+  state                  String?
+  postal_code            String?
+  phone_number           String?
+  created_at             DateTime @default(now())
+  stripe_customer_id     String?
+  stripe_subscription_id String?
 
-  orders      Order[]
-  bulkOrders  BulkOrder[]
-  auditLogs   AuditLog[]
+  orders            order[]
+  bulk_orders       bulk_order[]
+  audit_logs        audit_log[]
+  subscriptions     stripe_subscription[]
+  checkout_sessions stripe_checkout_session[] @relation("user_to_checkout_sessions")
+  invoices          stripe_invoice[]          @relation("user_to_invoices")
+  charges           stripe_charge[]           @relation("user_to_charges")
 
-  @@map("users") // Maps the model to the lowercase "users" table
+  // Sellers
+  products product[] @relation("seller_products")
+
+  stripe_account stripe_connected_account?
+
+  @@map("users")
+}
+
+model stripe_checkout_session {
+  id                String   @id @default(uuid())
+  stripe_session_id String   @unique
+  customer_id       String?
+  payment_status    String   @default("pending")
+  created_at        DateTime @default(now())
+
+  customer user? @relation(fields: [customer_id], references: [id], onDelete: Cascade, name: "user_to_checkout_sessions")
+}
+
+model stripe_invoice {
+  id                String   @id @default(uuid())
+  stripe_invoice_id String   @unique
+  customer_id       String?
+  amount_due        Float
+  amount_paid       Float
+  status            String   @default("open")
+  created_at        DateTime @default(now())
+
+  customer user? @relation(fields: [customer_id], references: [id], onDelete: Cascade, name: "user_to_invoices")
+}
+
+model stripe_charge {
+  id               String   @id @default(uuid())
+  stripe_charge_id String   @unique
+  customer_id      String?
+  amount           Float
+  status           String   @default("succeeded")
+  created_at       DateTime @default(now())
+
+  customer user?           @relation(fields: [customer_id], references: [id], onDelete: Cascade, name: "user_to_charges")
+  refunds  stripe_refund[] @relation("charge_to_refunds")
+}
+
+model stripe_subscription {
+  id                     String   @id @default(uuid())
+  stripe_subscription_id String   @unique
+  customer_id            String?
+  status                 String   @default("active")
+  current_period_start   DateTime
+  current_period_end     DateTime
+  created_at             DateTime @default(now())
+
+  customer user? @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+}
+
+model stripe_refund {
+  id               String   @id @default(uuid())
+  stripe_refund_id String   @unique
+  charge_id        String?
+  amount           Float
+  status           String   @default("pending")
+  created_at       DateTime @default(now())
+
+  charge stripe_charge? @relation(fields: [charge_id], references: [id], onDelete: Cascade, name: "charge_to_refunds")
+}
+
+model stripe_connected_account {
+  id                String   @id @default(uuid())
+  seller_id         String   @unique
+  stripe_account_id String   @unique
+  created_at        DateTime @default(now())
+
+  seller user @relation(fields: [seller_id], references: [id], onDelete: Cascade)
 }

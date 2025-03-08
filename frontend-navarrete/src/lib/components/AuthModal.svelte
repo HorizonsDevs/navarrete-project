@@ -13,26 +13,38 @@
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
 
     async function handleAuth() {
-        try {
-            let endpoint = isSignUp ? "register" : "login";
-            let url = `${API_BASE_URL}/users/${endpoint}?${new URLSearchParams({ 
-                name, email, password 
-            })}`;
+    try {
+        let endpoint = isSignUp ? "register" : "login";
+        let url = `${API_BASE_URL}/users/${endpoint}`;
 
-            const response = await fetch(url, { method: "POST" });
-            const data = await response.json();
+        // Prepare the body content based on the form
+        const body = isSignUp
+            ? JSON.stringify({ name, email, password })  // For sign up
+            : JSON.stringify({ email, password });  // For login
 
-            if (!response.ok) throw new Error(data.error || "Authentication failed");
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: body, // Pass JSON data
+        });
 
-            // Store user info & token
-            login(data.user, data.token);
+        const data = await response.json();
 
-            // Close modal
-            showAuthModal = false;
-        } catch (err) {
-            error = err.message;
-        }
+        if (!response.ok) throw new Error(data.error || "Authentication failed");
+
+        // Store user info & token
+        login(data.user, data.token);
+
+        // Close modal
+        showAuthModal = false;
+    } catch (err) {
+        error = err.message;
     }
+}
+
+
 </script>
 
 {#if showAuthModal}
