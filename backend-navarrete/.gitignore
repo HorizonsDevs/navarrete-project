@@ -1,3 +1,60 @@
-node_modules
-# Keep environment variables out of version control
+# Node Modules
+node_modules/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment Variables
 .env
+.env.*
+!.env.example
+!.env.test
+
+# Dependency directories
+/.pnp
+.pnp.js
+
+# Build artifacts
+dist/
+build/
+.out/
+.cache/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Editor-specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Process ID files
+.pids
+*.pid
+*.seed
+
+# Miscellaneous
+.nyc_output/
+coverage/
+*.local
+*.bak
+*.backup
+
+# Database-related files
+db.sqlite
+db.sqlite-journal
+*.sqlite
+*.sqlite-journal
+pgdata/
+mysql-data/
+
+# Ignore package-lock.json
+package-lock.json
