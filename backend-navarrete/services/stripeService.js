@@ -2,23 +2,36 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const prisma = require('../prismaClient'); // Prisma ORM
 
 // 🟢 Create a Stripe PaymentIntent (Customers Only)
-exports.createPaymentIntent = async (customerId, amount) => {
+exports.createPaymentIntent = async (customerId, amount, guestEmail = null) => {
     if (!amount || amount <= 0) {
         throw new Error("Invalid payment amount.");
     }
 
-    const user = await prisma.user.findUnique({ where: { id: customerId } });
+    let stripeCustomerId = null;
 
-    if (!user || !user.stripe_customer_id) {
-        throw new Error("Stripe customer not found.");
+    if (customerId) {
+        // Registered user: Fetch their Stripe customer ID
+        const user = await prisma.user.findUnique({ where: { id: customerId } });
+
+        if (user && user.stripe_customer_id) {
+            stripeCustomerId = user.stripe_customer_id;
+        } else {
+            throw new Error("Stripe customer not found.");
+        }
+    } else if (guestEmail) {
+        // Guest user: Create a temporary Stripe customer
+        const guestCustomer = await stripe.customers.create({ email: guestEmail });
+        stripeCustomerId = guestCustomer.id;
     }
 
     return await stripe.paymentIntents.create({
         amount: Math.round(amount * 100), // Convert to cents
         currency: 'usd',
-        customer: user.stripe_customer_id,
+        customer: stripeCustomerId,
+        receipt_email: guestEmail || null, // Send receipt if guest
     });
 };
+
 
 // 🔵 Get Customer's Payment History
 exports.getCustomerPayments = async (stripeCustomerId) => {

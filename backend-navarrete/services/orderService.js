@@ -1,14 +1,21 @@
 const prisma = require('../prismaClient');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
-// 🟢 Get all orders (Admin Only)
+// 🟢 Get all orders (Admins only)
 exports.getAllOrders = async () => {
     return await prisma.order.findMany({
         include: { items: true, customer: true }
     });
 };
 
-// 🔵 Get order by ID
+// 🔵 Get orders by Seller ID
+exports.getOrdersBySeller = async (sellerId) => {
+    return await prisma.order.findMany({
+        where: { sellerId },
+        include: { items: true }
+    });
+};
+
+// 🔵 Get single order by ID
 exports.getOrderById = async (orderId) => {
     return await prisma.order.findUnique({
         where: { id: orderId },
@@ -16,54 +23,20 @@ exports.getOrderById = async (orderId) => {
     });
 };
 
-// 🔵 Get orders by seller (Sellers Only)
-exports.getOrdersBySeller = async (sellerId) => {
-    return await prisma.order.findMany({
-        where: {
-            items: {
-                some: { product: { sellerId } }
-            }
-        },
-        include: { items: true, customer: true }
-    });
-};
-
-// 🟢 Create order & process Stripe payment
+// 🟢 Create a new order
 exports.createOrder = async ({ customerId, totalPrice, stripePaymentIntentId, status, items }) => {
     return await prisma.order.create({
         data: {
             customerId,
-            totalPrice,
+            total_price: totalPrice,
             stripe_payment_intent_id: stripePaymentIntentId,
             status,
-            items: {
-                create: items.map(item => ({
-                    productId: item.productId,
-                    quantity: item.quantity,
-                    price: item.price
-                }))
-            }
-        },
-        include: { items: true }
+            items: { create: items }
+        }
     });
 };
 
-// 🟠 Update order details
-exports.updateOrder = async (orderId, data) => {
-    return await prisma.order.update({
-        where: { id: orderId },
-        data
-    });
-};
-
-// 🔴 Delete order (Admin Only)
-exports.deleteOrder = async (orderId) => {
-    return await prisma.order.delete({
-        where: { id: orderId }
-    });
-};
-
-// 🔄 Update order status (Admins & Sellers)
+// 🟠 Update order status
 exports.updateOrderStatus = async (orderId, status) => {
     return await prisma.order.update({
         where: { id: orderId },
@@ -71,13 +44,17 @@ exports.updateOrderStatus = async (orderId, status) => {
     });
 };
 
+// 🔴 Delete an order
+exports.deleteOrder = async (orderId) => {
+    return await prisma.order.delete({
+        where: { id: orderId }
+    });
+};
+
 // 🔄 Mark order as refunded
-exports.markOrderAsRefunded = async (orderId, refundId) => {
+exports.markOrderAsRefunded = async (orderId, stripeRefundId) => {
     return await prisma.order.update({
         where: { id: orderId },
-        data: {
-            stripe_refund_id: refundId,
-            status: "refunded"
-        }
+        data: { status: 'refunded', stripe_refund_id: stripeRefundId }
     });
 };

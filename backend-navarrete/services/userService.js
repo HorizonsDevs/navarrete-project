@@ -14,15 +14,17 @@ const generateToken = (user) => {
 
 // 🟢 Get all users (Admin Only)
 exports.getAllUsers = async () => {
-    return await prisma.users.findMany();
+    return await prisma.user.findMany(); // ✅ Correct method
 };
+
 
 // 🔵 Get user by ID
 exports.getUserById = async (userId) => {
-    return await prisma.users.findUnique({
+    return await prisma.user.findUnique({ // ✅ Correct model name
         where: { id: userId }
     });
 };
+
 
 // 🔵 Get user by email
 exports.getUserByEmail = async (email) => {
@@ -64,7 +66,7 @@ exports.createUser = async (name, email, password, role) => {
         }
 
         // Create user in database
-        return await prisma.users.create({
+        return await prisma.user.create({
             data: {
                 name,
                 email,
@@ -110,7 +112,7 @@ exports.registerUser = async (name, email, password, stripeCustomerId = null, st
 // 🟠 Update user information
 exports.updateUser = async (userId, data) => {
     try {
-        return await prisma.users.update({
+        return await prisma.user.update({
             where: { id: userId },
             data
         });
@@ -123,12 +125,43 @@ exports.updateUser = async (userId, data) => {
 // 🔴 Delete user (Admin Only)
 exports.deleteUser = async (userId) => {
     try {
-        return await prisma.users.delete({
+        // Fetch user to get Stripe Customer ID
+        const user = await prisma.user.findUnique({
             where: { id: userId }
         });
+
+        if (!user) {
+            console.error("User not found:", userId);
+            return { error: "User not found" };
+        }
+
+        // Check if the user has a valid Stripe customer ID
+        if (user.stripe_customer_id) {
+            try {
+                // Attempt to delete the Stripe customer
+                await stripe.customers.del(user.stripe_customer_id);
+                console.log(`✅ Stripe customer deleted: ${user.stripe_customer_id}`);
+            } catch (stripeError) {
+                // Handle case where customer doesn't exist
+                if (stripeError.code === "resource_missing") {
+                    console.warn(`⚠️ Stripe customer ID not found: ${user.stripe_customer_id}`);
+                } else {
+                    throw stripeError; // Re-throw other Stripe errors
+                }
+            }
+        }
+
+        // Delete the user from the database
+        await prisma.user.delete({
+            where: { id: userId }
+        });
+
+        console.log(`✅ User deleted successfully: ${userId}`);
+        return { success: "User deleted successfully" };
+        
     } catch (error) {
-        console.error("Error deleting user:", error);
-        return { error: "Failed to delete users." };
+        console.error("❌ Error deleting user:", error);
+        return { error: "Failed to delete user." };
     }
 };
 
@@ -158,7 +191,7 @@ exports.validatePassword = async (password, hashedPassword) => {
 // 🟠 Update user Stripe Subscription
 exports.updateSubscription = async (userId, stripeSubscriptionId) => {
     try {
-        return await prisma.users.update({
+        return await prisma.user.update({
             where: { id: userId },
             data: { stripe_subscription_id: stripeSubscriptionId }
         });

@@ -52,22 +52,21 @@ model order {
 }
 
 model product {
-  id                String   @id @default(uuid())
+  id                String       @id @default(uuid())
   name              String
   description       String?
   price             Float
-  stock_quantity    Int      @default(0)
-  image_url         String?
-  created_at        DateTime @default(now())
+  stock_quantity    Int          @default(0)
+  image_urls        String[]     @default([])  // ✅ Stores multiple images
+  created_at        DateTime     @default(now())
   stripe_product_id String?
   stripe_price_id   String?
-
-  seller_id  String
-  seller     user         @relation(fields: [seller_id], references: [id], onDelete: Cascade, name: "seller_products")
-  order_item order_item[]
+  order_item        order_item[]
 
   @@map("products")
 }
+
+
 
 model user {
   id                     String   @id @default(uuid())
@@ -93,7 +92,6 @@ model user {
   charges           stripe_charge[]           @relation("user_to_charges")
 
   // Sellers
-  products product[] @relation("seller_products")
 
   stripe_account stripe_connected_account?
 
