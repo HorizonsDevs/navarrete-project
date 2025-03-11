@@ -4,12 +4,22 @@ const authMiddleware = require('../middlewares/authMiddleware');
 
 const router = express.Router();
 
+// ✅ GET all orders (Admin & Seller)
 router.get('/', authMiddleware.protect, orderController.getAllOrders);
+
+// ✅ GET single order by ID
 router.get('/:id', authMiddleware.protect, orderController.getOrderById);
-router.post('/', authMiddleware.protect, authMiddleware.customerOnly, orderController.createOrder);
-router.put('/:id', authMiddleware.protect, orderController.updateOrder);
-router.delete('/:id', authMiddleware.protect, authMiddleware.adminOnly, orderController.deleteOrder);
-router.patch('/:id', orderController.updateOrder);
-router.post('/:id/refund', authMiddleware.protect, authMiddleware.adminOnly, orderController.processRefund);
+
+// ✅ POST create a new order (Customers Only)
+router.post('/', authMiddleware.protect, orderController.createOrder);
+
+// ✅ PUT update order status (Seller & Admin)
+router.put('/:id', authMiddleware.protect, orderController.updateOrderStatus);
+
+// ✅ DELETE order (Seller & Admin)
+router.delete('/:id', authMiddleware.protect, orderController.deleteOrder);
+
+// ✅ PUT refund an order (Seller & Admin)
+router.put('/:id/refund', authMiddleware.protect, orderController.markOrderAsRefunded);
 
 module.exports = router;

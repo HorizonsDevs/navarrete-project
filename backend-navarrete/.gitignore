@@ -58,3 +58,7 @@ mysql-data/
 
 # Ignore package-lock.json
 package-lock.json
+
+# 🔥 Ignore `uploads/` folder entirely (prevents committing user-uploaded files)
+uploads/
+uploads/*

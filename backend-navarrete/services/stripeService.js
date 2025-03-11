@@ -1,7 +1,7 @@
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-const prisma = require('../prismaClient'); // Prisma ORM
+const prisma = require('../prismaClient');
 
-// 🟢 Create a Stripe PaymentIntent (Customers Only)
+// 🟢 Create a Stripe PaymentIntent (Handles both customers & guests)
 exports.createPaymentIntent = async (customerId, amount, guestEmail = null) => {
     if (!amount || amount <= 0) {
         throw new Error("Invalid payment amount.");
@@ -10,60 +10,38 @@ exports.createPaymentIntent = async (customerId, amount, guestEmail = null) => {
     let stripeCustomerId = null;
 
     if (customerId) {
-        // Registered user: Fetch their Stripe customer ID
         const user = await prisma.user.findUnique({ where: { id: customerId } });
-
         if (user && user.stripe_customer_id) {
             stripeCustomerId = user.stripe_customer_id;
         } else {
             throw new Error("Stripe customer not found.");
         }
     } else if (guestEmail) {
-        // Guest user: Create a temporary Stripe customer
         const guestCustomer = await stripe.customers.create({ email: guestEmail });
         stripeCustomerId = guestCustomer.id;
     }
 
     return await stripe.paymentIntents.create({
-        amount: Math.round(amount * 100), // Convert to cents
+        amount: Math.round(amount * 100),
         currency: 'usd',
         customer: stripeCustomerId,
-        receipt_email: guestEmail || null, // Send receipt if guest
+        receipt_email: guestEmail || null,
     });
 };
 
-
 // 🔵 Get Customer's Payment History
 exports.getCustomerPayments = async (stripeCustomerId) => {
-    if (!stripeCustomerId) {
-        throw new Error("Stripe customer ID is required.");
-    }
-
-    return await stripe.paymentIntents.list({
-        customer: stripeCustomerId,
-        limit: 10
-    });
+    return await stripe.paymentIntents.list({ customer: stripeCustomerId, limit: 10 });
 };
 
 // 🔄 Process a Refund (Admins Only)
 exports.processRefund = async (paymentIntentId) => {
-    if (!paymentIntentId) {
-        throw new Error("Payment Intent ID is required.");
-    }
-
-    return await stripe.refunds.create({
-        payment_intent: paymentIntentId
-    });
+    return await stripe.refunds.create({ payment_intent: paymentIntentId });
 };
 
 // 🟢 Create a Subscription (Customers Only)
 exports.createSubscription = async (customerId, priceId) => {
-    if (!priceId) {
-        throw new Error("Price ID is required.");
-    }
-
     const user = await prisma.user.findUnique({ where: { id: customerId } });
-
     if (!user || !user.stripe_customer_id) {
         throw new Error("Stripe customer not found.");
     }
@@ -82,70 +60,22 @@ exports.createSubscription = async (customerId, priceId) => {
     return subscription;
 };
 
-// 🔵 Get Subscription Details
-exports.getSubscription = async (stripeSubscriptionId) => {
-    if (!stripeSubscriptionId) {
-        throw new Error("Stripe subscription ID is required.");
-    }
-
-    return await stripe.subscriptions.retrieve(stripeSubscriptionId);
-};
-
-// 🔄 Cancel Subscription (Customers Only)
+// 🔄 Cancel Subscription
 exports.cancelSubscription = async (customerId) => {
     const user = await prisma.user.findUnique({ where: { id: customerId } });
-
     if (!user || !user.stripe_subscription_id) {
         throw new Error("No active subscription found.");
     }
 
     await stripe.subscriptions.del(user.stripe_subscription_id);
-
-    await prisma.user.update({
-        where: { id: customerId },
-        data: { stripe_subscription_id: null }
-    });
+    await prisma.user.update({ where: { id: customerId }, data: { stripe_subscription_id: null } });
 
     return { message: "Subscription cancelled successfully." };
 };
 
-// 🟢 Create Stripe Connect Account for Seller
-exports.createStripeAccount = async (sellerId, email) => {
-    const stripeAccount = await stripe.accounts.create({
-        type: 'express',
-        email
-    });
-
-    await prisma.user.update({
-        where: { id: sellerId },
-        data: { stripe_account_id: stripeAccount.id }
-    });
-
-    return stripeAccount;
-};
-
-// 🔵 Get Stripe Connect Onboarding Link
-exports.getStripeOnboardingLink = async (stripeAccountId) => {
-    if (!stripeAccountId) {
-        throw new Error("Stripe account ID is required.");
-    }
-
-    return await stripe.accountLinks.create({
-        account: stripeAccountId,
-        refresh_url: process.env.FRONTEND_URL + '/dashboard',
-        return_url: process.env.FRONTEND_URL + '/dashboard',
-        type: 'account_onboarding',
-    });
-};
-
 // 🟢 Process Payout for Seller
 exports.processPayout = async (sellerId, amount) => {
-    if (!amount || amount <= 0) {
-        throw new Error("Invalid payout amount.");
-    }
-
     const user = await prisma.user.findUnique({ where: { id: sellerId } });
-
     if (!user || !user.stripe_account_id) {
         throw new Error("Seller is not connected to Stripe.");
     }
@@ -159,12 +89,5 @@ exports.processPayout = async (sellerId, amount) => {
 
 // 🔵 Get Seller Payouts
 exports.getSellerPayouts = async (stripeAccountId) => {
-    if (!stripeAccountId) {
-        throw new Error("Stripe account ID is required.");
-    }
-
-    return await stripe.payouts.list({
-        limit: 10,
-        destination: stripeAccountId
-    });
+    return await stripe.payouts.list({ limit: 10, destination: stripeAccountId });
 };

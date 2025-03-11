@@ -46,33 +46,137 @@ exports.getProductById = async (req, res) => {
         const product = await productService.getProductById(req.params.id);
         if (!product) return res.status(404).json({ error: "Product not found." });
 
-        res.json({
-            ...product,
-            imageUrls: product.image_urls, // ✅ Return all images as an array
-        });
+        res.json({ ...product });
     } catch (error) {
         console.error("❌ Error fetching product:", error);
         res.status(500).json({ error: "Failed to retrieve product." });
     }
 };
 
+// 🟢 **Create a new product (Sellers Only)**
+exports.createProduct = async (req, res) => {
+    try {
+        const { name, description, price, stockQuantity } = req.body;
 
-// 🟢 **Create a new product (Sellers Only)**
-// 🟢 **Create a new product (Sellers Only)**
+        if (!name || !price || !stockQuantity) {
+            return res.status(400).json({ error: "Name, price, and stockQuantity are required." });
+        }
+
+        let imageUrls = [];
+
+        console.log("🟢 Files Received:", req.files);
+
+        // ✅ Step 1: Create Product in DB First to Get UUID
+        const newProduct = await productService.createProduct({
+            name,
+            description,
+            price: parseFloat(price),
+            stock_quantity: parseInt(stockQuantity), // ✅ Fix: Use `stock_quantity` (matches Prisma)
+            image_urls: [] // Images will be added later
+        });
+
+        if (!newProduct || !newProduct.id) {
+            return res.status(500).json({ error: "Failed to generate product UUID." });
+        }
+
+        const productUUID = newProduct.id; // ✅ Use the UUID assigned by the DB
+        console.log("🟢 Product Created, UUID:", productUUID);
+
+        // ✅ Step 2: Process & Save Images with `{PRODUCT_UUID}_{Counter}.webp` Format
+        if (req.files && req.files.length > 0) {
+            let counter = 1;
+            for (let file of req.files) {
+                const filename = `${productUUID}_${String(counter).padStart(3, '0')}.webp`;
+                const imagePath = path.join(UPLOADS_DIR, filename);
+
+                await sharp(file.buffer)
+                    .resize(500, 500)
+                    .toFormat('webp')
+                    .webp({ quality: 80 })
+                    .toFile(imagePath);
+
+                imageUrls.push(`/uploads/${filename}`);
+                console.log(`✅ Image saved: ${filename}`);
+                counter++;
+            }
+        }
+
+        console.log("🟢 Final Image URLs:", imageUrls);
+
+        // ✅ Step 3: Create Stripe Product
+        let stripe_product_id = null;
+        let stripe_price_id = null;
+
+        try {
+            const stripeProduct = await stripe.products.create({
+                name,
+                description,
+                images: imageUrls.map(img => `http://localhost:3000${img}`),
+            });
+
+            stripe_product_id = stripeProduct.id;
+            console.log("✅ Stripe Product Created:", stripe_product_id);
+
+            // ✅ Step 4: Create Stripe Price
+            if (price) {
+                const stripePrice = await stripe.prices.create({
+                    unit_amount: Math.round(price * 100), // Convert to cents
+                    currency: 'usd',
+                    product: stripe_product_id,
+                });
+
+                stripe_price_id = stripePrice.id;
+                console.log("✅ Stripe Price Created:", stripe_price_id);
+            }
+        } catch (stripeError) {
+            console.error("❌ Stripe API Error:", stripeError);
+            return res.status(500).json({ error: "Failed to create Stripe product." });
+        }
+
+        // ✅ Step 5: Update Product in DB with Images & Stripe IDs
+        const updatedProduct = await productService.updateProduct(newProduct.id, {
+            stripe_product_id, // ✅ Fix: Use correct Prisma field name
+            stripe_price_id,   // ✅ Fix: Use correct Prisma field name
+            image_urls: imageUrls, // ✅ Store image URLs properly
+        });
+
+        console.log("🟢 Product Updated with Images & Stripe:", updatedProduct);
+        res.status(201).json(updatedProduct);
+    } catch (error) {
+        console.error("❌ Error creating product:", error);
+        res.status(500).json({ error: "Failed to create product." });
+    }
+};
+
+
+
+
+
+// 🟠 **Update a product (Sellers Only)**
 exports.updateProduct = async (req, res) => {
     try {
-        const { name, description, price, stockQuantity, imageUrls } = req.body;
-        const product = await productService.getProductById(req.params.id);
+        const { name, description, price, stock_quantity, imageUrls } = req.body;
+        const productId = req.params.id;
 
-        if (!product) return res.status(404).json({ error: "Product not found." });
+        console.log("🟢 Received Update Request for Product ID:", productId);
+        console.log("🟢 Request Body:", req.body);
 
-        let updatedImageUrls = [...(product.image_urls || [])]; // ✅ Preserve existing images
+        // ✅ Step 1: Check if Product Exists
+        const product = await productService.getProductById(productId);
+        if (!product) {
+            console.error("❌ Product not found:", productId);
+            return res.status(404).json({ error: "Product not found." });
+        }
 
-        // ✅ Remove unwanted images if `imageUrls` is provided
+        // ✅ Step 2: Log Incoming Images
+        let updatedImageUrls = [...(product.image_urls || [])];
+        console.log("🔵 Existing Image URLs:", updatedImageUrls);
+        console.log("🟢 Files Received:", req.files);
+
+        // ✅ Step 3: Handle Image Deletions
         if (imageUrls && Array.isArray(imageUrls)) {
             updatedImageUrls = updatedImageUrls.filter(img => imageUrls.includes(img));
 
-            // ✅ Physically delete removed images from `uploads/`
             for (const oldImage of product.image_urls) {
                 if (!imageUrls.includes(oldImage)) {
                     const fullPath = path.join(__dirname, '../', oldImage);
@@ -84,10 +188,11 @@ exports.updateProduct = async (req, res) => {
             }
         }
 
-        // ✅ Process newly uploaded images
+        // ✅ Step 4: Handle New Image Uploads (Start at `_000.webp`)
         if (req.files && req.files.length > 0) {
+            let counter = 0; // ✅ Reset to zero
             for (let file of req.files) {
-                const filename = `${Date.now()}-${file.originalname.replace(/\s/g, '')}.webp`; // ✅ Remove spaces
+                const filename = `${product.id}_${String(counter).padStart(3, '0')}.webp`; 
                 const imagePath = path.join(__dirname, '../uploads', filename);
 
                 await sharp(file.buffer)
@@ -97,113 +202,43 @@ exports.updateProduct = async (req, res) => {
                     .toFile(imagePath);
 
                 updatedImageUrls.push(`/uploads/${filename}`);
-                console.log(`✅ New image saved: ${filename}`);
+                console.log(`✅ New Image Saved: ${filename}`);
+                counter++;
             }
         }
 
-        // ✅ Update Stripe product images safely
-        if (product.stripeProductId) {
+        console.log("🟢 Final Updated Image URLs:", updatedImageUrls);
+
+        // ✅ Step 5: Update Stripe Product (If Exists)
+        if (product.stripe_product_id) {
             try {
-                await stripe.products.update(product.stripeProductId, {
+                await stripe.products.update(product.stripe_product_id, {
                     name: name || product.name,
                     description: description || product.description,
                     images: updatedImageUrls.map(img => `http://localhost:3000${img}`),
                 });
-                console.log(`🔄 Stripe product updated: ${product.stripeProductId}`);
+                console.log(`🔄 Stripe Product Updated: ${product.stripe_product_id}`);
             } catch (stripeError) {
                 console.warn("⚠️ Stripe update failed:", stripeError.message);
             }
         }
 
-        // ✅ Update product in the database
-        const updatedProduct = await productService.updateProduct(req.params.id, {
+        // ✅ Step 6: Update Product in Database
+        const updatedProduct = await productService.updateProduct(productId, {
             name,
             description,
             price: price !== undefined ? parseFloat(price) : product.price,
-            stockQuantity: stockQuantity !== undefined ? parseInt(stockQuantity) : product.stockQuantity,
-            image_urls: updatedImageUrls, // ✅ Store correctly formatted image URLs
+            stock_quantity: stock_quantity !== undefined ? parseInt(stock_quantity) : product.stock_quantity, // ✅ Fix field name
+            image_urls: updatedImageUrls,
         });
 
-        console.log(`✅ Product updated successfully: ${updatedProduct.id}`);
+        console.log("🟢 Product Updated Successfully:", updatedProduct);
         res.json(updatedProduct);
     } catch (error) {
         console.error("❌ Error updating product:", error);
         res.status(500).json({ error: "Failed to update product." });
     }
 };
-
-
-
-
-
-// 🟠 **Update a product (Sellers Only)**
-exports.updateProduct = async (req, res) => {
-    try {
-        const { name, description, price, stockQuantity, imageUrls } = req.body;
-        const product = await productService.getProductById(req.params.id);
-        
-        if (!product) return res.status(404).json({ error: "Product not found." });
-
-        let updatedImageUrls = [...(product.image_urls || [])]; // ✅ Ensure array exists
-
-        // ✅ Remove unwanted images if `imageUrls` is provided
-        if (imageUrls && Array.isArray(imageUrls)) {
-            updatedImageUrls = updatedImageUrls.filter(img => imageUrls.includes(img));
-
-            // ✅ Physically delete removed images
-            for (const oldImage of product.image_urls) {
-                if (!imageUrls.includes(oldImage)) {
-                    const fullPath = path.join(__dirname, '../', oldImage);
-                    if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
-                }
-            }
-        }
-
-        // ✅ Append newly uploaded images
-        if (req.files && req.files.length > 0) {
-            for (let file of req.files) {
-                const filename = `${Date.now()}-${file.originalname}.webp`;
-                const imagePath = path.join(__dirname, '../uploads', filename);
-
-                await sharp(file.buffer)
-                    .resize(500, 500)
-                    .toFormat('webp')
-                    .webp({ quality: 80 })
-                    .toFile(imagePath);
-
-                updatedImageUrls.push(`/uploads/${filename}`);
-            }
-        }
-
-        // ✅ Update Stripe product images safely
-        if (product.stripeProductId) {
-            try {
-                await stripe.products.update(product.stripeProductId, {
-                    name: name || product.name,
-                    description: description || product.description,
-                    images: updatedImageUrls.map(img => `http://localhost:3000${img}`),
-                });
-            } catch (stripeError) {
-                console.warn("⚠️ Stripe update failed:", stripeError.message);
-            }
-        }
-
-        // ✅ Update product in the database
-        const updatedProduct = await productService.updateProduct(req.params.id, {
-            name,
-            description,
-            price: price !== undefined ? parseFloat(price) : product.price,
-            stockQuantity: stockQuantity !== undefined ? parseInt(stockQuantity) : product.stockQuantity,
-            image_urls: updatedImageUrls, // ✅ Ensure correct Prisma field name
-        });
-
-        res.json(updatedProduct);
-    } catch (error) {
-        console.error("❌ Error updating product:", error);
-        res.status(500).json({ error: "Failed to update product." });
-    }
-};
-
 
 
 
@@ -221,19 +256,14 @@ exports.deleteProduct = async (req, res) => {
         } catch (stripeError) {
             console.warn("⚠️ Stripe product not found or already deleted:", stripeError.message);
         }
-        
 
-        // ✅ Delete the image file if it exists
-        // ✅ Loop through multiple images and delete them
+        // ✅ Delete images
         if (product.image_urls && product.image_urls.length > 0) {
             for (const imageUrl of product.image_urls) {
                 const imagePath = path.join(__dirname, '../', imageUrl);
-                if (fs.existsSync(imagePath)) {
-                    fs.unlinkSync(imagePath);
-                }
+                if (fs.existsSync(imagePath)) fs.unlinkSync(imagePath);
             }
         }
-
 
         await productService.deleteProduct(req.params.id);
         res.json({ message: "Product deleted successfully." });
