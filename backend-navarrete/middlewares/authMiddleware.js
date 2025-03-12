@@ -10,7 +10,7 @@ exports.protect = async (req, res, next) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         req.user = await prisma.user.findUnique({ where: { id: decoded.id } });
 
-        if (!req.user) return res.status(401).json({ error: "User not found" });
+        if (!req.user) return res.status(401).json({ error: "User not Hoe" });
 
         next();
     } catch (error) {

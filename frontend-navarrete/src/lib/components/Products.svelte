@@ -18,7 +18,7 @@
     let translatedProducts = []; // Store the translated products
 
     // Reactive statement to update products when translations change
-    $: translatedProducts = $translations.products || [];
+    $: translatedProducts = $translations?.products ?? [];
 
     onMount(() => {
         embla = EmblaCarousel(emblaNode, { loop: true, speed: 8 });

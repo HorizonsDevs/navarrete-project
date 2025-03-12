@@ -11,6 +11,19 @@ const generateToken = (user) => {
     );
 };
 
+exports.getUserWithOrders = async (userId) => {
+    return await prisma.user.findUnique({
+        where: { id: userId },
+        include: {
+            orders: true,  // ✅ Directly include orders from the user relationship
+        }
+    });
+};
+
+
+
+
+
 
 // 🟢 Get all users (Admin Only)
 exports.getAllUsers = async () => {

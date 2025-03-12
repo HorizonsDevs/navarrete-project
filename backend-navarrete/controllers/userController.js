@@ -3,6 +3,36 @@ const jwt = require('jsonwebtoken');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const userService = require('../services/userService');
 
+// 🔹 Get User Orders
+exports.getUserOrders = async (req, res) => {
+    try {
+        console.log("🔍 Received request for user orders");
+
+        // Ensure the user is correctly extracted from authentication
+        if (!req.user) {
+            console.error("🚨 No user found in request");
+            return res.status(401).json({ error: "Unauthorized, user not found" });
+        }
+
+        // Fetch user with their orders
+        const userWithOrders = await req.prisma.user.findUnique({
+            where: { id: req.user.id },
+            include: { orders: true },  // ✅ Include orders from the user schema
+        });
+
+        console.log("✅ User with orders:", userWithOrders);
+
+        if (!userWithOrders) return res.status(404).json({ error: "User not found" });
+
+        res.status(200).json(userWithOrders.orders);
+    } catch (error) {
+        console.error("❌ Error fetching user orders:", error);
+        res.status(500).json({ error: "Failed to fetch user orders" });
+    }
+};
+
+
+
 // Get all users (Admin only)
 exports.getAllUsers = async (req, res) => {
     try {
@@ -18,7 +48,7 @@ exports.getAllUsers = async (req, res) => {
 exports.getUserById = async (req, res) => {
     try {
         const user = await userService.getUserById(req.params.id);
-        if (!user) return res.status(404).json({ error: 'User not found' });
+        if (!user) return res.status(404).json({ error: 'User not found hoe' });
 
         res.json(user);
     } catch (error) {

@@ -4,7 +4,20 @@ import { writable } from 'svelte/store';
 const isBrowser = typeof window !== "undefined";
 
 // Get stored user & token (only in browser)
-const storedUser = isBrowser ? JSON.parse(localStorage.getItem("user")) || null : null;
+const getUserFromStorage = () => {
+    if (!isBrowser) return null;
+
+    try {
+        const stored = localStorage.getItem("user");
+        return stored ? JSON.parse(stored) : null;
+    } catch (error) {
+        console.error("Error parsing user from localStorage:", error);
+        return null;
+    }
+};
+
+const storedUser = getUserFromStorage();
+
 const storedToken = isBrowser ? localStorage.getItem("token") || null : null;
 
 export const auth = writable({
